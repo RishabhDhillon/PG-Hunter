@@ -1,0 +1,295 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import VideoPlayer from '@/components/VideoPlayer.astro';
+import VerificationBadge from '@/components/VerificationBadge.astro';
+import { amenityBySlug } from '@/data/amenities';
+import { amenityIcon } from '@/lib/amenityIcons';
+import {
+  MapPin,
+  Bookmark,
+  Utensils,
+  Clock3,
+  ShieldCheck,
+  MessageCircle,
+  Check,
+  Building2,
+  Play,
+  Phone,
+} from '@lucide/astro';
+
+import { propertyBySlug, activeProperties, startingRent } from '@/data/properties';
+import { collegeById, localityById } from '@/data/colleges';
+import { formatINR, formatDistance } from '@/lib/format';
+
+export function getStaticPaths() {
+  return activeProperties().map((p) => ({ params: { slug: p.slug } }));
+}
+
+const { slug } = Astro.params;
+const property = propertyBySlug(slug!);
+
+if (!property) {
+  return Astro.redirect('/pgs-near-you');
+}
+
+const { p } = { p: property };
+const locality = localityById(p.localityId);
+const rent = startingRent(p);
+const photos = p.media.filter((m) => m.type === 'photo');
+const videos = p.media.filter((m) => m.type === 'video');
+const roomsLabel = [...new Set(p.rooms.map((r) => r.occupancy))].join(', ');
+const availableRooms = p.rooms.filter((r) => r.available).length;
+---
+
+<BaseLayout
+  title={`${p.name} — ${roomsLabel} starting from ${formatINR(rent)}/month | PG Hunter`}
+  description={p.description}
+  image={photos[0]?.externalId}
+>
+  <div class="mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+    <nav aria-label="Breadcrumb" class="text-sm">
+      <ol class="flex flex-wrap items-center gap-1.5 text-slate-500">
+        <li><a href="/" class="hover:text-brand-700">Home</a></li>
+        <li aria-hidden="true">/</li>
+        <li><a href="/pgs-near-you" class="hover:text-brand-700">PGs Near You</a></li>
+        <li aria-hidden="true">/</li>
+        <li aria-current="page" class="font-semibold text-slate-800">{p.name}</li>
+      </ol>
+    </nav>
+
+    <div class="mt-6 flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <div class="flex flex-wrap items-center gap-2">
+          <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">{p.name}</h1>
+          <VerificationBadge status={p.verificationStatus} />
+        </div>
+        <p class="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm font-medium text-slate-500">
+          <MapPin class="h-4 w-4 text-brand-600" />
+          {p.address} · {locality?.name}
+        </p>
+        <ul class="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm font-medium text-slate-500">
+          {p.collegeDistances.map((d) => {
+            const c = collegeById(d.collegeId);
+            return c ? (
+              <li>
+                <a href={`/colleges/${c.slug}`} class="text-brand-700 hover:underline">
+                  {formatDistance(d.distanceMeters)} from {c.shortName}
+                </a>
+              </li>
+            ) : null;
+          })}
+        </ul>
+      </div>
+      <div class="flex items-center gap-2">
+        <a
+          href="/login"
+          class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50"
+          aria-label="Save this PG (login required)"
+          title="Save (login required)"
+        >
+          <Bookmark class="h-5 w-5" />
+        </a>
+      </div>
+    </div>
+
+    <div class="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]">
+      <div class="min-w-0">
+        <figure>
+          <img
+            src={photos[0]?.externalId}
+            alt={p.name}
+            width="800"
+            height="600"
+            class="aspect-[16/10] w-full rounded-2xl object-cover shadow-card"
+          />
+        </figure>
+
+        <div class="mt-4 grid grid-cols-4 gap-3">
+          {photos.slice(1, 5).map((photo) => (
+            <img
+              src={photo.externalId}
+              alt={photo.title}
+              loading="lazy"
+              decoding="async"
+              width="400"
+              height="300"
+              class="aspect-[4/3] w-full rounded-xl object-cover"
+            />
+          ))}
+        </div>
+
+        <section aria-labelledby="walkthrough-heading" class="mt-8">
+          <h2 id="walkthrough-heading" class="flex items-center gap-2 text-lg font-bold text-slate-900">
+            <Play class="h-5 w-5 text-brand-600" /> Walkthrough videos
+          </h2>
+          <p class="mt-1 text-sm text-slate-500">
+            Tap to play. Videos are placeholders during development.
+          </p>
+          {videos.length > 0 ? (
+            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {videos.map((video) => (
+                <VideoPlayer videoId={video.externalId} title={video.title} />
+              ))}
+            </div>
+          ) : (
+            <p class="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+              No walkthrough video yet for this property.
+            </p>
+          )}
+        </section>
+
+        <section aria-labelledby="about-heading" class="mt-8">
+          <h2 id="about-heading" class="text-lg font-bold text-slate-900">About this {p.propertyType === 'flat' ? 'flat' : 'PG'}</h2>
+          <p class="mt-2 text-sm leading-relaxed text-slate-600">{p.description}</p>
+        </section>
+
+        <section aria-labelledby="rooms-heading" class="mt-8">
+          <h2 id="rooms-heading" class="text-lg font-bold text-slate-900">Rooms & pricing</h2>
+          <div class="mt-3 overflow-hidden rounded-xl border border-slate-200">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th scope="col" class="px-4 py-3 font-semibold">Room</th>
+                  <th scope="col" class="px-4 py-3 font-semibold">Monthly rent</th>
+                  <th scope="col" class="px-4 py-3 font-semibold">Deposit</th>
+                  <th scope="col" class="px-4 py-3 font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                {p.rooms.map((room) => (
+                  <tr>
+                    <td class="px-4 py-3 font-semibold text-slate-800">{room.occupancy}</td>
+                    <td class="px-4 py-3 text-slate-700">{formatINR(room.rent)}</td>
+                    <td class="px-4 py-3 text-slate-700">{formatINR(room.deposit)}</td>
+                    <td class="px-4 py-3">
+                      {room.available ? (
+                        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                          <Check class="h-3 w-3" /> Available
+                        </span>
+                      ) : (
+                        <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                          Occupied
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {availableRooms === 0 && (
+            <p class="mt-3 rounded-xl bg-amber-50 p-3 text-sm font-medium text-amber-800">
+              All rooms are currently occupied — enquire to join a waiting list.
+            </p>
+          )}
+        </section>
+
+        <section aria-labelledby="amenities-heading" class="mt-8">
+          <h2 id="amenities-heading" class="text-lg font-bold text-slate-900">Amenities</h2>
+          <ul class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {p.amenitySlugs.map((slug) => {
+              const Icon = amenityIcon(slug);
+              return (
+                <li class="flex items-center gap-2.5 rounded-xl bg-slate-50 px-3.5 py-3 text-sm font-medium text-slate-700">
+                  <Icon class="h-5 w-5 shrink-0 text-brand-600" />
+                  {amenityBySlug(slug)?.label ?? slug}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+
+        <section aria-labelledby="stay-heading" class="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="rounded-xl border border-slate-200 p-4">
+            <h2 id="stay-heading" class="flex items-center gap-2 text-sm font-bold text-slate-900">
+              <Utensils class="h-4 w-4 text-brand-600" /> Food & mess
+            </h2>
+            {p.food.available ? (
+              <ul class="mt-2 space-y-1 text-sm text-slate-600">
+                <li>Mess available: {p.food.type === 'both' ? 'Veg & non-veg' : p.food.type === 'veg' ? 'Vegetarian' : 'Non-veg'}</li>
+                {p.food.monthlyCost && <li>Cost: {formatINR(p.food.monthlyCost)}/month</li>}
+              </ul>
+            ) : (
+              <p class="mt-2 text-sm text-slate-600">No mess. Self-cooking kitchen available.</p>
+            )}
+          </div>
+          <div class="rounded-xl border border-slate-200 p-4">
+            <h2 class="flex items-center gap-2 text-sm font-bold text-slate-900">
+              <Clock3 class="h-4 w-4 text-brand-600" /> Curfew & rules
+            </h2>
+            <ul class="mt-2 space-y-1 text-sm text-slate-600">
+              {p.curfew ? <li>Curfew: {p.curfew}</li> : <li>No fixed curfew</li>}
+              {p.rules.slice(0, 4).map((rule) => (
+                <li>{rule}</li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <p class="mt-8 rounded-xl bg-slate-50 p-4 text-xs leading-relaxed text-slate-500">
+          <ShieldCheck class="mr-1 inline h-4 w-4 text-brand-600" />
+          Verification reflects what has actually been performed. "{'Listed'}" means owner-submitted and
+          not yet verified. Development preview — this listing is mock data.
+        </p>
+      </div>
+
+      <aside class="lg:sticky lg:top-24 lg:self-start">
+        <div class="card border border-slate-200 p-6">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Starting from</p>
+          <p class="mt-1 text-3xl font-extrabold text-brand-700">
+            {formatINR(rent)}
+            <span class="text-sm font-medium text-slate-400">/month</span>
+          </p>
+          <p class="mt-2 text-sm font-medium text-slate-600">{roomsLabel}</p>
+
+          <div class="mt-5 flex flex-col gap-2.5">
+            <a
+              href="/login"
+              class="btn-primary w-full"
+              title="Login required to send an enquiry"
+            >
+              Send Enquiry
+            </a>
+            <a
+              href="/login"
+              class="btn-secondary w-full"
+              title="Login required to message the owner"
+            >
+              <MessageCircle class="h-4 w-4" />
+              Message Owner
+            </a>
+          </div>
+
+          <p class="mt-4 rounded-lg bg-brand-50 px-3 py-2.5 text-xs leading-relaxed text-brand-800">
+            <Phone class="mr-1 inline h-3.5 w-3.5" />
+            Contact details are shared with logged-in students to keep your number private.
+          </p>
+        </div>
+
+        <div class="card mt-4 border border-slate-200 p-6">
+          <h2 class="flex items-center gap-2 text-sm font-bold text-slate-900">
+            <Building2 class="h-4 w-4 text-brand-600" /> Property details
+          </h2>
+          <dl class="mt-3 space-y-2.5 text-sm">
+            <div class="flex justify-between gap-3">
+              <dt class="text-slate-500">Type</dt>
+              <dd class="font-semibold capitalize text-slate-800">{p.propertyType}</dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-slate-500">Gender</dt>
+              <dd class="font-semibold capitalize text-slate-800">{p.gender === 'co-ed' ? 'Co-ed' : p.gender === 'boys' ? 'Boys' : 'Girls'}</dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-slate-500">Locality</dt>
+              <dd class="font-semibold text-slate-800">{locality?.name}</dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-slate-500">Availability</dt>
+              <dd class="font-semibold text-slate-800">{availableRooms} of {p.rooms.length} room types</dd>
+            </div>
+          </dl>
+        </div>
+      </aside>
+    </div>
+  </div>
+</BaseLayout>

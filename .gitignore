@@ -1,0 +1,18 @@
+# build output
+dist/
+node_modules/
+
+# environment
+.env
+.env.local
+.env.production
+
+# logs
+*.log
+npm-debug.log*
+
+# os / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

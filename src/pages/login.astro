@@ -1,0 +1,73 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { Mail, Lock, ArrowRight } from '@lucide/astro';
+
+const next = Astro.url.searchParams.get('next') ?? '/';
+---
+
+<BaseLayout
+  title="Login / Sign up — PG Hunter"
+  description="Log in or create a free account on PG Hunter to save PGs, send enquiries and message owners."
+>
+  <section class="mx-auto max-w-md px-4 py-14 sm:px-6">
+    <div class="card border border-slate-200 p-8">
+      <img src="/favicon.svg" alt="" width="40" height="40" class="h-10 w-10" />
+      <h1 class="mt-4 text-2xl font-extrabold tracking-tight text-slate-900">
+        Welcome back
+      </h1>
+      <p class="mt-1 text-sm text-slate-500">
+        Log in to save PGs, send enquiries and message owners.
+      </p>
+
+      <form class="mt-6 flex flex-col gap-3.5">
+        <input type="hidden" name="next" value={next} />
+        <label class="field">
+          <Mail class="h-5 w-5 shrink-0 text-brand-600" />
+          <span class="sr-only">Email or phone</span>
+          <input
+            type="text"
+            name="identifier"
+            placeholder="Email or phone number"
+            autocomplete="username"
+            class="w-full bg-transparent outline-none"
+            required
+          />
+        </label>
+        <label class="field">
+          <Lock class="h-5 w-5 shrink-0 text-brand-600" />
+          <span class="sr-only">Password</span>
+          <input
+            type="password"
+            name="password"
+            placeholder="Password"
+            autocomplete="current-password"
+            class="w-full bg-transparent outline-none"
+            required
+          />
+        </label>
+        <button type="submit" class="btn-primary w-full">
+          Login
+          <ArrowRight class="h-4 w-4" />
+        </button>
+      </form>
+
+      <div class="my-5 flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-slate-400">
+        <span class="h-px flex-1 bg-slate-200" aria-hidden="true"></span>
+        or
+        <span class="h-px flex-1 bg-slate-200" aria-hidden="true"></span>
+      </div>
+
+      <a href="/login" class="btn-secondary w-full" aria-disabled="true" title="Coming soon">
+        Continue with Google (coming soon)
+      </a>
+
+      <p class="mt-6 text-center text-sm text-slate-500">
+        Don't have an account?{' '}
+        <a href="/login" class="font-semibold text-brand-700 hover:underline">Sign up free</a>
+      </p>
+      <p class="mt-3 rounded-lg bg-slate-50 px-3 py-2.5 text-center text-xs text-slate-500">
+        Authentication is not live yet in this development preview.
+      </p>
+    </div>
+  </section>
+</BaseLayout>
