@@ -97,6 +97,40 @@ const fetchProfile = async (userId: string): Promise<Profile | null> => {
   return data ?? null;
 };
 
+const ensureProfile = async (session: Session): Promise<Profile | null> => {
+  const existing = await fetchProfile(session.user.id);
+  if (existing) return existing;
+
+  const sb = getClient();
+  if (!sb) return null;
+
+  const metadata = session.user.user_metadata;
+  const role = metadata?.role === 'owner' ? 'owner' : 'student';
+  const fullName =
+    (metadata?.full_name as string | undefined) ??
+    (metadata?.name as string | undefined) ??
+    session.user.email?.split('@')[0] ??
+    'User';
+
+  const { data } = await sb
+    .from('profiles')
+    .upsert(
+      {
+        id: session.user.id,
+        full_name: fullName,
+        role,
+        avatar_url: (metadata?.avatar_url as string | undefined) ?? (metadata?.picture as string | undefined) ?? null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'id' }
+    )
+    .select('*')
+    .maybeSingle();
+
+  profileCache = { userId: session.user.id, profile: data ?? null, at: Date.now() };
+  return data ?? null;
+};
+
 const appUserFrom = (session: Session, profile: Profile | null): AppUser => ({
   id: session.user.id,
   name:
@@ -117,7 +151,7 @@ const appUserFrom = (session: Session, profile: Profile | null): AppUser => ({
 export const getSession = async (): Promise<AppUser | null> => {
   const session = await getCurrentSession();
   if (!session) return null;
-  const profile = await fetchProfile(session.user.id);
+  const profile = await ensureProfile(session);
   return appUserFrom(session, profile);
 };
 
@@ -128,7 +162,7 @@ export const onAuthChange = (cb: (user: AppUser | null) => void): (() => void) =
   const { data } = sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
       profileCache = null;
-      cb(session ? appUserFrom(session, await fetchProfile(session.user.id)) : null);
+      cb(session ? appUserFrom(session, await ensureProfile(session)) : null);
     } else if (event === 'SIGNED_OUT') {
       profileCache = null;
       cb(null);
@@ -179,7 +213,8 @@ export const register = async (input: {
 
   if (error) return { error: friendlyAuthError(error.message) };
   if (!data.session) return { needsConfirmation: true };
-  return { user: appUserFrom(data.session, await fetchProfile(data.session.user.id)) };
+  profileCache = null;
+  return { user: appUserFrom(data.session, await ensureProfile(data.session)) };
 };
 
 /** Log in with email + password. */
@@ -193,7 +228,8 @@ export const login = async (input: { email: string; password: string }): Promise
   });
   if (error) return { error: friendlyAuthError(error.message) };
   if (!data.session) return { error: 'Could not start a session. Please try again.' };
-  return { user: appUserFrom(data.session, await fetchProfile(data.session.user.id)) };
+  profileCache = null;
+  return { user: appUserFrom(data.session, await ensureProfile(data.session)) };
 };
 
 /**
@@ -214,6 +250,31 @@ export const signInWithGoogle = async (next?: string): Promise<{ error?: string 
   });
   if (error) return { error: friendlyAuthError(error.message) };
   return {};
+};
+
+/** Complete Supabase email confirmation/OAuth redirects that return with ?code=. */
+export const completeAuthRedirect = async (): Promise<AuthResult> => {
+  const sb = getClient();
+  if (!sb) return { error: 'Supabase is not configured. Add PUBLIC_SUPABASE_URL and PUBLIC_SUPABASE_ANON_KEY to .env' };
+
+  const url = new URL(window.location.href);
+  const code = url.searchParams.get('code');
+  const errorDescription = url.searchParams.get('error_description') ?? url.searchParams.get('error');
+
+  if (errorDescription) return { error: friendlyAuthError(errorDescription.replace(/\+/g, ' ')) };
+
+  if (code) {
+    const { data, error } = await sb.auth.exchangeCodeForSession(code);
+    if (error) return { error: friendlyAuthError(error.message) };
+    if (data.session) {
+      profileCache = null;
+      return { user: appUserFrom(data.session, await ensureProfile(data.session)) };
+    }
+  }
+
+  const { data } = await sb.auth.getSession();
+  if (!data.session) return { error: 'Sign-in could not be completed. Please try again.' };
+  return { user: appUserFrom(data.session, await ensureProfile(data.session)) };
 };
 
 /** Sign out locally; Supabase also clears its persisted session. */

@@ -20,7 +20,7 @@ import { LoaderCircle } from '@lucide/astro';
 </BaseLayout>
 
 <script>
-  import { getClient, onAuthChange } from '@/lib/auth';
+  import { completeAuthRedirect } from '@/lib/auth';
 
   const redirect = () => {
     const next = sessionStorage.getItem('pghunter.next');
@@ -28,27 +28,20 @@ import { LoaderCircle } from '@lucide/astro';
     window.location.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : '/');
   };
 
-  // detectSessionInUrl (set in the client) exchanges the ?code= PKCE flow
-  // automatically on load; SIGNED_IN then fires here.
-  onAuthChange((user) => {
-    if (user) redirect();
-  });
-
-  // Fallback: if the exchange already completed before we subscribed.
-  getClient()?.auth.getSession().then(({ data }) => {
-    if (data.session) redirect();
-  });
-
-  // Give the exchange a few seconds; if nothing happened, show an error.
-  setTimeout(() => {
+  const showError = (message: string) => {
     const spinner = document.getElementById('callback-spinner');
     const errorEl = document.getElementById('callback-error');
     const loginLink = document.getElementById('callback-login-link');
     if (spinner) spinner.classList.add('hidden');
     if (errorEl) {
-      errorEl.textContent = 'Sign-in could not be completed. Please try again.';
+      errorEl.textContent = message;
       errorEl.classList.remove('hidden');
     }
     if (loginLink) loginLink.classList.remove('hidden');
-  }, 8000);
+  };
+
+  completeAuthRedirect().then(({ user, error }) => {
+    if (user) redirect();
+    else showError(error ?? 'Sign-in could not be completed. Please try again.');
+  });
 </script>

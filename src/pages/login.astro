@@ -190,10 +190,15 @@ const googleMark = `<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
   const switchLink = document.getElementById('switch-link') as HTMLAnchorElement;
   const switchHint = document.getElementById('switch-hint') as HTMLElement;
   const googleBtn = document.getElementById('google-btn') as HTMLButtonElement;
+  const loginSubmit = loginForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+  const signupSubmit = signupForm.querySelector('button[type="submit"]') as HTMLButtonElement;
 
   const configured = isConfigured();
   configError.classList.toggle('hidden', configured);
   configError.classList.toggle('flex', !configured);
+  loginSubmit.disabled = !configured;
+  signupSubmit.disabled = !configured;
+  googleBtn.disabled = !configured;
 
   const showError = (message: string) => {
     errorEl.textContent = message;
@@ -252,19 +257,27 @@ const googleMark = `<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
 
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!configured) return showError('Supabase is not configured. Add the public Supabase URL and anon key, then restart the dev server.');
     clearMessages();
+    loginSubmit.disabled = true;
+    loginSubmit.textContent = 'Logging in...';
     const data = new FormData(loginForm);
     const { user, error } = await login({
       email: String(data.get('email') ?? ''),
       password: String(data.get('password') ?? ''),
     });
+    loginSubmit.disabled = false;
+    loginSubmit.innerHTML = 'Login <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>';
     if (error) return showError(error);
     if (user) finish();
   });
 
   signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!configured) return showError('Supabase is not configured. Add the public Supabase URL and anon key, then restart the dev server.');
     clearMessages();
+    signupSubmit.disabled = true;
+    signupSubmit.textContent = 'Creating account...';
     const data = new FormData(signupForm);
     const { user, needsConfirmation, error } = await register({
       name: String(data.get('name') ?? ''),
@@ -272,6 +285,8 @@ const googleMark = `<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
       password: String(data.get('password') ?? ''),
       role: (data.get('role') as 'student' | 'owner') ?? 'student',
     });
+    signupSubmit.disabled = false;
+    signupSubmit.innerHTML = 'Create free account <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>';
     if (error) return showError(error);
     if (needsConfirmation) {
       showSuccess('Almost there — check your inbox and click the confirmation link to activate your account.');
