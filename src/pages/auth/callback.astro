@@ -1,0 +1,54 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { LoaderCircle } from '@lucide/astro';
+---
+
+<BaseLayout
+  title="Signing you in… — PG Hunter"
+  description="Completing your PG Hunter sign-in."
+  noindex
+>
+  <section class="mx-auto max-w-md px-4 py-24 text-center sm:px-6">
+    <LoaderCircle id="callback-spinner" class="mx-auto h-10 w-10 animate-spin text-brand-600" />
+    <h1 class="mt-6 text-xl font-extrabold tracking-tight text-slate-900">Signing you in…</h1>
+    <p class="mt-1 text-sm text-slate-500">One moment while we confirm your account.</p>
+    <p id="callback-error" class="mt-6 hidden text-sm font-medium text-rose-700" role="alert"></p>
+    <a id="callback-login-link" href="/login" class="btn-secondary mt-6 hidden">
+      Back to login
+    </a>
+  </section>
+</BaseLayout>
+
+<script>
+  import { getClient, onAuthChange } from '@/lib/auth';
+
+  const redirect = () => {
+    const next = sessionStorage.getItem('pghunter.next');
+    sessionStorage.removeItem('pghunter.next');
+    window.location.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : '/');
+  };
+
+  // detectSessionInUrl (set in the client) exchanges the ?code= PKCE flow
+  // automatically on load; SIGNED_IN then fires here.
+  onAuthChange((user) => {
+    if (user) redirect();
+  });
+
+  // Fallback: if the exchange already completed before we subscribed.
+  getClient()?.auth.getSession().then(({ data }) => {
+    if (data.session) redirect();
+  });
+
+  // Give the exchange a few seconds; if nothing happened, show an error.
+  setTimeout(() => {
+    const spinner = document.getElementById('callback-spinner');
+    const errorEl = document.getElementById('callback-error');
+    const loginLink = document.getElementById('callback-login-link');
+    if (spinner) spinner.classList.add('hidden');
+    if (errorEl) {
+      errorEl.textContent = 'Sign-in could not be completed. Please try again.';
+      errorEl.classList.remove('hidden');
+    }
+    if (loginLink) loginLink.classList.remove('hidden');
+  }, 8000);
+</script>
