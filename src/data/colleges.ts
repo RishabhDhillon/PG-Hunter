@@ -103,6 +103,9 @@ export const localities: Locality[] = [
 export const localityById = (id: string): Locality | undefined =>
   localities.find((l) => l.id === id);
 
+export const localityBySlug = (slug: string): Locality | undefined =>
+  localities.find((l) => l.slug === slug);
+
 export const collegeBySlug = (slug: string): College | undefined =>
   colleges.find((c) => c.slug === slug);
 
