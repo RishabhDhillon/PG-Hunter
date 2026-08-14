@@ -92,6 +92,31 @@ Discovery is the initial acquisition engine. Management becomes the retention la
 ### Status
 Approved
 
+---
+
+## Decision #007
+### Decision
+Authentication and user data moved from Supabase to Cloudflare Workers + D1 (custom auth: PBKDF2 password hashing, opaque session cookies, manual Google OAuth 2.0).
+
+### Date
+2026-08-14
+
+### Reason
+Supabase was introduced as a temporary backend before the Cloudflare phase. The locked architecture (Decision #005) is Astro → Cloudflare Workers → D1. Keeping auth on Workers removes a second vendor and lets sessions, saved PGs and leads live in one D1 database. This supersedes the "evaluate Supabase Auth" note in MASTER_ARCHITECTURE.md.
+
+### Alternatives
+- Keep Supabase Auth and call it from the Worker. Rejected: splits auth data from the rest of the user data.
+- Delegate to a third-party auth service (Auth.js, Clerk). Rejected: adds a dependency for features (email/password + Google + session cookies) that Workers handles directly.
+
+### Impact
+- All /api/* endpoints run in the same Worker as the site; sessions are httpOnly cookies (`ph_session`), so no tokens reach JavaScript.
+- Passwords are hashed with PBKDF2-SHA256 (210k iterations, per-user salt) via WebCrypto in workerd — no raw passwords stored (DATABASE_SCHEMA.md rule).
+- Google sign-in requires GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET (wrangler secrets / .dev.vars) and the callback URL `{origin}/api/auth/google/callback` registered in Google Cloud Console.
+- Email confirmation/verification is deferred; roles are self-declared (student/owner) for the MVP.
+
+### Status
+Approved
+
 
 # Cloudflare Architecture Decisions â€” Final Decision Record
 

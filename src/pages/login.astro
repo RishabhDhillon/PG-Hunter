@@ -1,6 +1,6 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { Mail, Lock, ArrowRight, UserRound, GraduationCap, Building2, TriangleAlert } from '@lucide/astro';
+import { Mail, Lock, ArrowRight, UserRound, GraduationCap, Building2 } from '@lucide/astro';
 
 const googleMark = `<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true"><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82Z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24Z"/><path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29A11.86 11.86 0 0 0 0 12c0 1.94.47 3.76 1.29 5.38l3.98-3.09Z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09C6.22 6.86 8.87 4.75 12 4.75Z"/></svg>`;
 
@@ -19,15 +19,6 @@ const googleMark = `<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
       <p id="auth-subtitle" class="mt-1 text-sm text-slate-500">
         Log in to save PGs, send enquiries and message owners.
       </p>
-
-      <div id="config-error" class="mt-4 hidden items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm text-amber-800" role="alert">
-        <TriangleAlert class="mt-0.5 h-4 w-4 shrink-0" />
-        <span>
-          <strong class="font-bold">Supabase is not configured.</strong> Copy <code class="font-mono">.env.example</code> to
-          <code class="font-mono">.env</code>, fill in <code class="font-mono">PUBLIC_SUPABASE_URL</code> and
-          <code class="font-mono">PUBLIC_SUPABASE_ANON_KEY</code>, then restart the dev server.
-        </span>
-      </div>
 
       <div id="auth-error" class="mt-4 hidden rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm font-medium text-rose-700" role="alert"></div>
       <div id="auth-success" class="mt-4 hidden rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm font-medium text-emerald-700" role="status"></div>
@@ -158,7 +149,7 @@ const googleMark = `<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
         <a href="#switch" id="switch-link" class="font-semibold text-brand-700 hover:underline">Sign up free</a>
       </p>
       <p class="mt-3 rounded-lg bg-slate-50 px-3 py-2.5 text-center text-xs text-slate-500">
-        Your account and shortlist are stored securely with Supabase.
+        Your account and shortlist are stored securely on Cloudflare.
       </p>
     </div>
   </section>
@@ -166,7 +157,6 @@ const googleMark = `<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
 
 <script>
   import {
-    isConfigured,
     getSession,
     login,
     register,
@@ -184,7 +174,6 @@ const googleMark = `<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
   const signupForm = document.getElementById('signup-form') as HTMLFormElement;
   const title = document.getElementById('auth-title') as HTMLElement;
   const subtitle = document.getElementById('auth-subtitle') as HTMLElement;
-  const configError = document.getElementById('config-error') as HTMLElement;
   const errorEl = document.getElementById('auth-error') as HTMLElement;
   const successEl = document.getElementById('auth-success') as HTMLElement;
   const switchLink = document.getElementById('switch-link') as HTMLAnchorElement;
@@ -192,13 +181,6 @@ const googleMark = `<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
   const googleBtn = document.getElementById('google-btn') as HTMLButtonElement;
   const loginSubmit = loginForm.querySelector('button[type="submit"]') as HTMLButtonElement;
   const signupSubmit = signupForm.querySelector('button[type="submit"]') as HTMLButtonElement;
-
-  const configured = isConfigured();
-  configError.classList.toggle('hidden', configured);
-  configError.classList.toggle('flex', !configured);
-  loginSubmit.disabled = !configured;
-  signupSubmit.disabled = !configured;
-  googleBtn.disabled = !configured;
 
   const showError = (message: string) => {
     errorEl.textContent = message;
@@ -246,6 +228,16 @@ const googleMark = `<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
   // Honor ?mode=signup from the URL.
   setMode((params.get('mode') ?? 'login') === 'signup' ? 'signup' : 'login');
 
+  // Server-side redirects can land here with an error, e.g. Google not configured.
+  const urlError = params.get('error');
+  if (urlError === 'google-not-configured') {
+    showError('Google sign-in is not set up yet. Use email/password, or add your Google credentials (see CLOUDFLARE_SETUP.md).');
+  } else if (urlError === 'google-denied') {
+    showError('Google sign-in was cancelled.');
+  } else if (urlError === 'google-failed') {
+    showError('Could not complete Google sign-in. Please try again.');
+  }
+
   const finish = () => {
     window.location.href = safeNext;
   };
@@ -257,7 +249,6 @@ const googleMark = `<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
 
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!configured) return showError('Supabase is not configured. Add the public Supabase URL and anon key, then restart the dev server.');
     clearMessages();
     loginSubmit.disabled = true;
     loginSubmit.textContent = 'Logging in...';
@@ -274,7 +265,6 @@ const googleMark = `<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
 
   signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!configured) return showError('Supabase is not configured. Add the public Supabase URL and anon key, then restart the dev server.');
     clearMessages();
     signupSubmit.disabled = true;
     signupSubmit.textContent = 'Creating account...';
