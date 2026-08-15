@@ -1,5 +1,5 @@
 ---
-import Header from '@/components/Header.astro';
+import PublicHeader from '@/components/PublicHeader.astro';
 import Footer from '@/components/Footer.astro';
 import '@/styles/global.css';
 
@@ -50,7 +50,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
     />
   </head>
   <body class="flex min-h-screen flex-col">
-    <Header />
+    <PublicHeader />
     <main id="main" class="flex-1">
       <slot />
     </main>

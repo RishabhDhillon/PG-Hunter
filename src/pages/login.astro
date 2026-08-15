@@ -167,6 +167,10 @@ const googleMark = `<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
   const params = new URLSearchParams(window.location.search);
   const next = params.get('next') ?? '/';
   const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
+  // ?role=owner opens the sign-up tab with the Owner account type pre-selected
+  // (used by the For Owners flow).
+  const requestedRole = params.get('role');
+  const forceOwner = requestedRole === 'owner';
 
   const tabLogin = document.getElementById('tab-login') as HTMLButtonElement;
   const tabSignup = document.getElementById('tab-signup') as HTMLButtonElement;
@@ -227,6 +231,18 @@ const googleMark = `<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
 
   // Honor ?mode=signup from the URL.
   setMode((params.get('mode') ?? 'login') === 'signup' ? 'signup' : 'login');
+
+  // ?role=owner: open sign-up and pre-select Owner so the For Owners flow lands
+  // the user in the right account type.
+  if (forceOwner) {
+    setMode('signup');
+    const ownerRadio = signupForm.querySelector<HTMLInputElement>('input[name="role"][value="owner"]');
+    const studentRadio = signupForm.querySelector<HTMLInputElement>('input[name="role"][value="student"]');
+    if (ownerRadio) {
+      ownerRadio.checked = true;
+      studentRadio?.removeAttribute('checked');
+    }
+  }
 
   // Server-side redirects can land here with an error, e.g. Google not configured.
   const urlError = params.get('error');
