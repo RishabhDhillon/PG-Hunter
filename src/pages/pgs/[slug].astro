@@ -338,7 +338,7 @@ const availableRooms = p.rooms.filter((r) => r.available).length;
 
 <script>
   // Save + enquiry wiring for the detail page.
-  import { getCurrentSession, getSession, isSaved, toggleSaved, getClient } from '@/lib/auth';
+  import { getCurrentSession, getSession, isSaved, toggleSaved, createEnquiry } from '@/lib/auth';
 
   const saveBtn = document.querySelector<HTMLButtonElement>('[data-save-btn]');
   const propertyId = saveBtn?.dataset.propertyId ?? '';
@@ -407,19 +407,16 @@ const availableRooms = p.rooms.filter((r) => r.available).length;
 
   enquiryForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const sb = getClient();
-    const session = await getCurrentSession();
-    if (!sb || !session) return;
+    if (!(await getCurrentSession())) return;
     const data = new FormData(enquiryForm);
-    const { error } = await sb.from('leads').insert({
-      property_id: propertyId,
-      student_id: session.user.id,
+    const { error } = await createEnquiry({
+      propertyId,
       budget: String(data.get('budget') ?? ''),
-      move_in_month: String(data.get('moveInMonth') ?? ''),
+      moveInMonth: String(data.get('moveInMonth') ?? ''),
       message: String(data.get('message') ?? ''),
     });
     if (error) {
-      statusEl.textContent = `Could not send the enquiry: ${error.message}`;
+      statusEl.textContent = `Could not send the enquiry: ${error}`;
       statusEl.classList.remove('hidden');
       statusEl.classList.replace('bg-emerald-50', 'bg-rose-50');
       statusEl.classList.replace('text-emerald-700', 'text-rose-700');

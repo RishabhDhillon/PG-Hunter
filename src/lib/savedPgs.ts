@@ -1,11 +1,11 @@
 /**
  * Client-side rendering helpers for saved-PG lists.
  *
- * Saved PGs are stored per-user in Supabase (see src/lib/auth.ts), so they can
- * only be rendered in the browser after fetching the user's saved ids. These
- * helpers build the same card markup the
- * server-rendered PropertyCard component produces, minus interactivity, so the
- * Saved and Profile pages look consistent without a backend round-trip.
+ * Saved PGs are stored per-user in the Cloudflare Worker API (see
+ * src/lib/auth.ts), so they can only be rendered in the browser after
+ * fetching the user's saved ids. These helpers build the same card markup
+ * the server-rendered PropertyCard component produces, minus interactivity,
+ * so the Saved and Profile pages look consistent.
  */
 
 import type { Property } from '@/data/types';

@@ -2,7 +2,7 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import SearchPanel from '@/components/SearchPanel.astro';
 import PropertyCard from '@/components/PropertyCard.astro';
-import { SlidersHorizontal, ArrowUpDown, Map, ChevronDown } from '@lucide/astro';
+import { SlidersHorizontal, ArrowUpDown, ChevronDown } from '@lucide/astro';
 
 import { activeProperties } from '@/data/properties';
 
@@ -31,15 +31,6 @@ const allPgs = activeProperties();
         <span id="result-count">{allPgs.length}</span> PGs found
       </h2>
       <div class="ml-auto flex flex-wrap items-center gap-2">
-        <a
-          href="https://www.google.com/maps/search/PGs+near+Delhi"
-          target="_blank"
-          rel="noopener"
-          class="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-        >
-          <Map class="h-4 w-4" />
-          View on Map
-        </a>
         <label class="field w-auto">
           <ArrowUpDown class="h-4 w-4 shrink-0 text-brand-600" />
           <span class="sr-only">Sort</span>
@@ -231,7 +222,6 @@ const allPgs = activeProperties();
       const key = chip.dataset.filter as keyof Filters;
       const value = chip.dataset.value ?? '';
       const isActive = chip.classList.contains('is-active');
-      chips.forEach((c) => c.classList.toggle('is-active', c.dataset.filter !== key && false));
       chips
         .filter((c) => c.dataset.filter === key)
         .forEach((c) => c.classList.toggle('is-active', c === chip && !isActive));

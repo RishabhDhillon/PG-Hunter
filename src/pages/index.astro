@@ -3,7 +3,7 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import SearchPanel from '@/components/SearchPanel.astro';
 import TrustStrip from '@/components/TrustStrip.astro';
 import PropertyCard from '@/components/PropertyCard.astro';
-import { ArrowRight, SlidersHorizontal, ArrowUpDown, Map, Building2 } from '@lucide/astro';
+import { ArrowRight, SlidersHorizontal, ArrowUpDown, Building2 } from '@lucide/astro';
 
 import { activeProperties } from '@/data/properties';
 import { colleges } from '@/data/colleges';
@@ -57,13 +57,6 @@ const totalPgs = activeProperties().length;
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <a
-          href="/pgs-near-you"
-          class="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-4 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50"
-        >
-          <Map class="h-4 w-4" />
-          View on Map
-        </a>
         <a
           href="/pgs-near-you"
           class="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"

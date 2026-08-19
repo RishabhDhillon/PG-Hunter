@@ -7,6 +7,9 @@ interface Props {
 
 const { activePath = Astro.url.pathname } = Astro.props;
 
+// The public navbar is used on every non-owner route (/ , /pgs-near-you,
+// /colleges, /pgs/[slug], /profile, …) regardless of the logged-in role.
+// Owner navigation lives in OwnerHeader (used only on /owner/* routes).
 const navItems = [
   { label: 'Home', href: '/' },
   { label: 'PGs Near You', href: '/pgs-near-you' },
@@ -135,7 +138,8 @@ const isActive = (href: string): boolean =>
 
   toggle.addEventListener('click', () => setOpen(menu.classList.contains('hidden')));
 
-  // ---- Auth-aware header --------------------------------------------
+  // ---- Auth-aware header (guest vs. logged-in profile pill only) --------
+  // Navigation is route-based: public routes always show the public navbar.
   import { getSession, onAuthChange, initialsOf } from '@/lib/auth';
   import type { AppUser } from '@/lib/auth';
 
@@ -153,6 +157,7 @@ const isActive = (href: string): boolean =>
     userWrap.classList.toggle('hidden', !loggedIn);
     guestMobile.classList.toggle('hidden', loggedIn);
     userMobile.classList.toggle('hidden', !loggedIn);
+
     if (user) {
       const initials = initialsOf(user.name);
       avatar.textContent = initials;
