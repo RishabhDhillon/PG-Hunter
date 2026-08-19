@@ -417,6 +417,31 @@ export const uploadFile = (
   return apiForm('/api/media', form);
 };
 
+/* ---- Owner media management -------------------------------------- */
+
+/** Add a video embed (YouTube / Vimeo) to a listing. */
+export const addVideo = (input: {
+  listingId: string;
+  url: string;
+  title?: string;
+}): Promise<{
+  ok: boolean;
+  media: ListingMedia;
+}> => api('/api/owner/media', { method: 'POST', body: JSON.stringify(input) });
+
+/** Delete a photo or video from a listing. */
+export const deleteMedia = (listingId: string, mediaId: string): Promise<{ ok: boolean }> =>
+  api(`/api/owner/media?id=${encodeURIComponent(mediaId)}&listingId=${encodeURIComponent(listingId)}`, {
+    method: 'DELETE',
+  });
+
+/** Reorder media items on a listing. mediaIds = desired order. */
+export const reorderMedia = (listingId: string, mediaIds: string[]): Promise<{ ok: boolean }> =>
+  api('/api/owner/media', {
+    method: 'PUT',
+    body: JSON.stringify({ listingId, mediaIds }),
+  });
+
 /* ---- Admin API ---------------------------------------------------- */
 
 export interface AdminStats {

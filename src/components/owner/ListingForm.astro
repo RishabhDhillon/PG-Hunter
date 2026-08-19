@@ -1,5 +1,5 @@
 ---
-import { Plus, CloudUpload, Save, Send, Info } from '@lucide/astro';
+import { Plus, CloudUpload, Save, Send, Info, Link as LinkIcon } from '@lucide/astro';
 import { amenities } from '@/data/amenities';
 import { propertyTypeOptions, genderOptions, foodTypeOptions } from '@/lib/owner';
 
@@ -154,6 +154,40 @@ const edit = mode === 'edit';
       )}
     </fieldset>
 
+    <!-- Videos ------------------------------------------------------- -->
+    {edit && (
+      <fieldset class="border-t border-slate-100 pt-5">
+        <legend class="flex items-center gap-2 text-sm font-bold text-slate-900">
+          Videos <span class="text-xs font-medium text-slate-400">(YouTube)</span>
+        </legend>
+        <div id="video-grid" class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2"></div>
+        <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p class="mb-3 text-xs font-semibold text-slate-600">Add a video walkthrough</p>
+          <div class="flex flex-col gap-3 sm:flex-row">
+            <input
+              id="video-url-input"
+              type="url"
+            placeholder="Paste a YouTube link or video ID…"
+              class="field flex-1"
+            />
+            <input
+              id="video-title-input"
+              type="text"
+              placeholder="Title (optional)"
+              class="field w-full sm:w-48"
+            />
+            <button type="button" id="add-video-btn" class="btn-primary shrink-0">
+              <LinkIcon class="h-4 w-4" /> Add video
+            </button>
+          </div>
+          <p id="video-status" class="mt-2 hidden text-sm font-medium text-emerald-700" role="status"></p>
+          <p class="mt-2 text-xs text-slate-400">
+            Supported: YouTube full URLs, Shorts links, embeds, or bare video IDs.
+          </p>
+        </div>
+      </fieldset>
+    )}
+
     <div id="form-error" class="hidden rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700" role="alert"></div>
     <div id="form-success" class="hidden rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700" role="status"></div>
 
@@ -179,8 +213,10 @@ const edit = mode === 'edit';
     submitListing,
     uploadFile,
     getOwnerListing,
+    addVideo,
+    deleteMedia,
   } from '@/lib/auth';
-  import type { Listing, ListingInput } from '@/lib/auth';
+  import type { Listing, ListingInput, ListingMedia } from '@/lib/auth';
   import { roomTypeOptions } from '@/lib/owner';
 
   const form = document.getElementById('listing-form') as HTMLFormElement;
@@ -305,21 +341,48 @@ const edit = mode === 'edit';
     rooms: readRooms(),
   });
 
-  /* ---- Photo upload (edit mode) -------------------------------------- */
-  let media: Listing['media'] = [];
+  /* ---- Media state --------------------------------------------------- */
+  let media: ListingMedia[] = [];
 
+  /* ---- Photo management --------------------------------------------- */
   const renderPhotos = () => {
     const grid = document.getElementById('photo-grid');
     if (!grid) return;
-    grid.innerHTML = media
-      .filter((m) => m.type === 'photo')
+    const photos = media.filter((m) => m.type === 'photo');
+    grid.innerHTML = photos
       .map(
         (m) => `
-        <div class="group relative aspect-[4/3] overflow-hidden rounded-xl bg-slate-100">
+        <div class="group relative aspect-[4/3] overflow-hidden rounded-xl bg-slate-100" data-media-id="${m.id}">
           <img src="${m.url ?? m.externalId}" alt="${m.title}" loading="lazy" decoding="async" class="h-full w-full object-cover" />
+          <div class="absolute inset-0 flex items-start justify-between bg-gradient-to-b from-black/40 via-transparent to-black/40 p-2 opacity-0 transition-opacity group-hover:opacity-100">
+            <span class="flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-slate-500 cursor-grab active:cursor-grabbing" data-drag-handle title="Drag to reorder">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="m8 6 4-4 4 4"/><path d="m8 18 4 4 4-4"/></svg>
+            </span>
+            <button type="button" data-delete-media="${m.id}" class="flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-rose-500 transition-colors hover:bg-rose-500 hover:text-white" aria-label="Delete photo">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
         </div>`
       )
       .join('');
+
+    // Wire up delete buttons
+    grid.querySelectorAll<HTMLButtonElement>('[data-delete-media]').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const mediaId = btn.dataset.deleteMedia!;
+        if (!confirm('Delete this photo?')) return;
+        btn.disabled = true;
+        try {
+          await deleteMedia(listingId!, mediaId);
+          media = media.filter((m) => m.id !== mediaId);
+          renderPhotos();
+          renderVideos();
+        } catch (err) {
+          alert((err as Error).message);
+        }
+      });
+    });
   };
 
   const photoInput = document.getElementById('photo-input') as HTMLInputElement | null;
@@ -345,10 +408,120 @@ const edit = mode === 'edit';
     const fresh = await getOwnerListing(listingId);
     media = fresh.listing.media;
     renderPhotos();
+    renderVideos();
     uploadStatus.className = 'mt-2 text-sm font-medium text-emerald-700';
     setStatus(uploadStatus, 'Photos uploaded successfully.');
     photoInput.disabled = false;
     photoInput.value = '';
+  });
+
+  /* ---- Video management --------------------------------------------- */
+  const ytThumb = (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+  const renderVideos = () => {
+    const grid = document.getElementById('video-grid');
+    if (!grid) return;
+    const videos = media.filter((m) => m.type === 'video');
+    if (videos.length === 0) {
+      grid.innerHTML = `<p class="col-span-full py-4 text-center text-sm text-slate-400">No videos added yet.</p>`;
+      return;
+    }
+    grid.innerHTML = videos
+      .map((m) => {
+        const thumb = m.provider === 'youtube' ? ytThumb(m.externalId) : '';
+        const link = m.provider === 'youtube' ? `https://www.youtube.com/watch?v=${m.externalId}` : '#';
+        return `
+        <div class="group relative overflow-hidden rounded-xl bg-slate-900" data-media-id="${m.id}">
+          <div class="aspect-video">
+            ${thumb
+              ? `<img src="${thumb}" alt="${m.title}" loading="lazy" decoding="async" class="h-full w-full object-cover opacity-80" />`
+              : `<div class="flex h-full items-center justify-center bg-slate-800 text-slate-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </div>`
+            }
+            <div class="absolute inset-0 flex items-center justify-center">
+              <a href="${link}" target="_blank" rel="noopener" class="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-brand-700 shadow-lg transition-transform hover:scale-110">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              </a>
+            </div>
+          </div>
+          <div class="flex items-center justify-between px-3 py-2">
+            <div class="min-w-0">
+              <p class="truncate text-xs font-semibold text-white">${m.title}</p>
+              <p class="text-[10px] font-medium text-slate-400 capitalize">${m.provider}</p>
+            </div>
+            <button type="button" data-delete-media="${m.id}" class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-500/20 hover:text-rose-400" aria-label="Remove video">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+        </div>`;
+      })
+      .join('');
+
+    // Wire up delete
+    grid.querySelectorAll<HTMLButtonElement>('[data-delete-media]').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const mediaId = btn.dataset.deleteMedia!;
+        if (!confirm('Remove this video?')) return;
+        btn.disabled = true;
+        try {
+          await deleteMedia(listingId!, mediaId);
+          media = media.filter((m) => m.id !== mediaId);
+          renderVideos();
+          renderPhotos();
+        } catch (err) {
+          alert((err as Error).message);
+        }
+      });
+    });
+  };
+
+  // Add video button
+  const videoUrlInput = document.getElementById('video-url-input') as HTMLInputElement | null;
+  const videoTitleInput = document.getElementById('video-title-input') as HTMLInputElement | null;
+  const addVideoBtn = document.getElementById('add-video-btn') as HTMLButtonElement | null;
+  const videoStatus = document.getElementById('video-status') as HTMLElement | null;
+
+  addVideoBtn?.addEventListener('click', async () => {
+    if (!videoUrlInput || !videoStatus || !listingId) return;
+    flash(videoStatus, false);
+    const url = videoUrlInput.value.trim();
+    if (!url) {
+      videoStatus.className = 'mt-2 text-sm font-medium text-rose-700';
+      setStatus(videoStatus, 'Please enter a video URL.');
+      return;
+    }
+
+    addVideoBtn.disabled = true;
+    addVideoBtn.textContent = 'Adding…';
+
+    try {
+      const result = await addVideo({
+        listingId,
+        url,
+        title: videoTitleInput?.value.trim() || 'Room tour',
+      });
+      media.push(result.media);
+      renderVideos();
+      videoUrlInput.value = '';
+      if (videoTitleInput) videoTitleInput.value = '';
+      videoStatus.className = 'mt-2 text-sm font-medium text-emerald-700';
+      setStatus(videoStatus, 'Video added!');
+    } catch (err) {
+      videoStatus.className = 'mt-2 text-sm font-medium text-rose-700';
+      setStatus(videoStatus, (err as Error).message);
+    } finally {
+      addVideoBtn.disabled = false;
+      addVideoBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Add video';
+    }
+  });
+
+  // Enter key in URL input triggers add
+  videoUrlInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addVideoBtn?.click();
+    }
   });
 
   /* ---- Save + submit -------------------------------------------------- */
@@ -438,6 +611,7 @@ const edit = mode === 'edit';
 
     media = l.media;
     renderPhotos();
+    renderVideos();
   };
 
   const foodCheckbox = form.querySelector<HTMLInputElement>('#f-food-available')!;
