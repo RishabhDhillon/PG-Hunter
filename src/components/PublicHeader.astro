@@ -1,0 +1,171 @@
+---
+import { Menu, X, UserRound, Bookmark } from '@lucide/astro';
+
+interface Props {
+  activePath?: string;
+}
+
+const { activePath = Astro.url.pathname } = Astro.props;
+
+// The public navbar is used on every non-owner route (/ , /pgs-near-you,
+// /colleges, /pgs/[slug], /profile, …) regardless of the logged-in role.
+// Owner navigation lives in OwnerHeader (used only on /owner/* routes).
+const navItems = [
+  { label: 'Home', href: '/' },
+  { label: 'PGs Near You', href: '/pgs-near-you' },
+  { label: 'Colleges', href: '/colleges' },
+  { label: 'For Owners', href: '/for-owners' },
+  { label: 'Saved', href: '/saved', icon: Bookmark },
+];
+
+const isActive = (href: string): boolean =>
+  href === '/' ? activePath === '/' : activePath.startsWith(href);
+---
+
+<header class="sticky top-0 z-40 border-b border-slate-100 bg-white/95 backdrop-blur">
+  <div class="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
+    <a href="/" class="flex items-center gap-2" aria-label="PG Hunter home">
+      <img src="/favicon.svg" alt="" width="32" height="32" class="h-8 w-8" />
+      <span class="text-lg font-extrabold tracking-tight text-slate-900">
+        PG<span class="text-brand-600">Hunter</span>
+      </span>
+    </a>
+
+    <nav class="hidden items-center gap-1 lg:flex" aria-label="Primary">
+      {navItems.map((item) => (
+        <a
+          href={item.href}
+          class:list={[
+            'inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition-colors',
+            isActive(item.href)
+              ? 'bg-brand-50 text-brand-700'
+              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+          ]}
+        >
+          {item.icon && <item.icon class="h-4 w-4" />}
+          {item.label}
+        </a>
+      ))}
+    </nav>
+
+    <div class="ml-auto flex items-center gap-2">
+      <div id="auth-guest" class="flex items-center gap-2">
+        <a href="/login" class="btn-accent hidden sm:inline-flex" aria-label="Log in or sign up">
+          Login/Sign up
+        </a>
+        <a
+          href="/login"
+          aria-label="Account"
+          class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition-colors hover:bg-slate-50"
+        >
+          <UserRound class="h-5 w-5" />
+        </a>
+      </div>
+      <div id="auth-user" class="hidden items-center gap-2">
+        <a
+          href="/profile"
+          id="header-profile-link"
+          class="hidden items-center gap-2 rounded-full border border-slate-200 py-1 pl-1 pr-3 transition-colors hover:bg-slate-50 sm:inline-flex"
+          aria-label="Your profile"
+        >
+          <span
+            id="header-avatar"
+            class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-xs font-extrabold text-white"
+          >?</span>
+          <span id="header-name" class="max-w-28 truncate text-sm font-semibold text-slate-800"></span>
+        </a>
+        <a
+          href="/profile"
+          id="header-avatar-mobile"
+          aria-label="Your profile"
+          class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 text-sm font-extrabold text-white sm:hidden"
+        >?</a>
+      </div>
+      <button
+        id="menu-toggle"
+        class="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-700 transition-colors hover:bg-slate-50 lg:hidden"
+        aria-expanded="false"
+        aria-controls="mobile-menu"
+        aria-label="Open menu"
+      >
+        <Menu id="icon-open" class="h-5 w-5" />
+        <X id="icon-close" class="hidden h-5 w-5" />
+      </button>
+    </div>
+  </div>
+
+  <nav
+    id="mobile-menu"
+    class="hidden border-t border-slate-100 bg-white px-4 pb-4 pt-2 lg:hidden"
+    aria-label="Mobile"
+  >
+    <div class="mx-auto flex max-w-7xl flex-col">
+      {navItems.map((item) => (
+        <a
+          href={item.href}
+          class:list={[
+            'flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-semibold',
+            isActive(item.href) ? 'bg-brand-50 text-brand-700' : 'text-slate-700 hover:bg-slate-50',
+          ]}
+        >
+          {item.icon && <item.icon class="h-4 w-4" />}
+          {item.label}
+        </a>
+      ))}
+      <div id="auth-guest-mobile" class="mt-2">
+        <a href="/login" class="btn-accent w-full sm:hidden">Login/Sign up</a>
+      </div>
+      <a href="/profile" id="auth-user-mobile" class="btn-secondary mt-2 hidden w-full sm:hidden">
+        My profile
+      </a>
+    </div>
+  </nav>
+</header>
+
+<script>
+  const toggle = document.getElementById('menu-toggle') as HTMLButtonElement;
+  const menu = document.getElementById('mobile-menu') as HTMLElement;
+  const iconOpen = document.getElementById('icon-open') as HTMLElement;
+  const iconClose = document.getElementById('icon-close') as HTMLElement;
+
+  const setOpen = (open: boolean) => {
+    menu.classList.toggle('hidden', !open);
+    iconOpen.classList.toggle('hidden', open);
+    iconClose.classList.toggle('hidden', !open);
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  };
+
+  toggle.addEventListener('click', () => setOpen(menu.classList.contains('hidden')));
+
+  // ---- Auth-aware header (guest vs. logged-in profile pill only) --------
+  // Navigation is route-based: public routes always show the public navbar.
+  import { getSession, onAuthChange, initialsOf } from '@/lib/auth';
+  import type { AppUser } from '@/lib/auth';
+
+  const guest = document.getElementById('auth-guest')!;
+  const userWrap = document.getElementById('auth-user')!;
+  const guestMobile = document.getElementById('auth-guest-mobile')!;
+  const userMobile = document.getElementById('auth-user-mobile')!;
+  const avatar = document.getElementById('header-avatar')!;
+  const avatarMobile = document.getElementById('header-avatar-mobile')!;
+  const nameEl = document.getElementById('header-name')!;
+
+  const renderAuth = (user: AppUser | null) => {
+    const loggedIn = Boolean(user);
+    guest.classList.toggle('hidden', loggedIn);
+    userWrap.classList.toggle('hidden', !loggedIn);
+    guestMobile.classList.toggle('hidden', loggedIn);
+    userMobile.classList.toggle('hidden', !loggedIn);
+
+    if (user) {
+      const initials = initialsOf(user.name);
+      avatar.textContent = initials;
+      avatarMobile.textContent = initials;
+      nameEl.textContent = user.name.split(' ')[0];
+    }
+  };
+
+  getSession().then(renderAuth);
+  onAuthChange(renderAuth);
+</script>
