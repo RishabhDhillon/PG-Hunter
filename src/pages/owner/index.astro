@@ -69,6 +69,47 @@ import { listingStatusMeta } from '@/lib/owner';
     </div>
 
     <div class="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <section class="card lg:col-span-2" aria-labelledby="analytics-heading">
+        <div class="border-b border-slate-100 px-5 py-4">
+          <h2 id="analytics-heading" class="text-base font-bold text-slate-900">Enquiries and reach</h2>
+        </div>
+        <div class="grid grid-cols-1 gap-5 px-5 py-5 lg:grid-cols-2">
+          <div>
+            <div class="mb-3 flex items-center justify-between">
+              <p class="text-sm font-bold text-slate-800">Last 14 days</p>
+              <span class="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">Enquiries</span>
+            </div>
+            <div id="enquiry-chart" class="h-44"></div>
+          </div>
+          <div>
+            <div class="mb-3 flex items-center justify-between">
+              <p class="text-sm font-bold text-slate-800">PG reach</p>
+              <span id="stat-reach" class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">0 views</span>
+            </div>
+            <div id="reach-chart" class="h-44"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="pg-health-heading">
+        <div class="border-b border-slate-100 px-5 py-4">
+          <h2 id="pg-health-heading" class="text-base font-bold text-slate-900">PG stats</h2>
+        </div>
+        <div class="space-y-4 px-5 py-5">
+          <div id="status-bars" class="space-y-3"></div>
+          <div class="grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
+            <div class="rounded-xl bg-slate-50 p-3">
+              <p id="stat-rooms" class="text-xl font-extrabold text-slate-900">0</p>
+              <p class="text-xs font-semibold text-slate-500">Available rooms</p>
+            </div>
+            <div class="rounded-xl bg-slate-50 p-3">
+              <p id="stat-photos" class="text-xl font-extrabold text-slate-900">0</p>
+              <p class="text-xs font-semibold text-slate-500">Photos uploaded</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="card lg:col-span-2" aria-labelledby="recent-listings-heading">
         <div class="flex items-center justify-between border-b border-slate-100 px-5 py-4">
           <h2 id="recent-listings-heading" class="text-base font-bold text-slate-900">Your PGs</h2>
@@ -131,6 +172,12 @@ import { listingStatusMeta } from '@/lib/owner';
   const statVerification = document.getElementById('stat-verification')!;
   const listingsEl = document.getElementById('recent-listings')!;
   const leadsEl = document.getElementById('recent-leads')!;
+  const enquiryChart = document.getElementById('enquiry-chart')!;
+  const reachChart = document.getElementById('reach-chart')!;
+  const statusBars = document.getElementById('status-bars')!;
+  const statReach = document.getElementById('stat-reach')!;
+  const statRooms = document.getElementById('stat-rooms')!;
+  const statPhotos = document.getElementById('stat-photos')!;
 
   const statusBadge = (status: Listing['status']) => {
     const meta = listingStatusMeta[status];
@@ -172,6 +219,55 @@ import { listingStatusMeta } from '@/lib/owner';
   const verificationLabel = (status: 'none' | 'pending' | 'approved') =>
     status === 'approved' ? 'Approved' : status === 'pending' ? 'Pending' : 'Not started';
 
+  const renderLineChart = (
+    el: HTMLElement,
+    rows: { date: string; count?: number; views?: number }[],
+    key: 'count' | 'views',
+    color: string
+  ) => {
+    const values = rows.map((row) => Number(row[key] ?? 0));
+    const max = Math.max(1, ...values);
+    const points = values
+      .map((value, index) => {
+        const x = values.length === 1 ? 0 : (index / (values.length - 1)) * 300;
+        const y = 120 - (value / max) * 100;
+        return `${x},${y}`;
+      })
+      .join(' ');
+    const bars = values
+      .map((value, index) => {
+        const x = values.length === 1 ? 0 : (index / Math.max(1, values.length - 1)) * 300;
+        const y = 120 - (value / max) * 100;
+        return `<circle cx="${x}" cy="${y}" r="3.5" fill="${color}"><title>${rows[index].date}: ${value}</title></circle>`;
+      })
+      .join('');
+    el.innerHTML = `
+      <svg viewBox="0 0 300 130" class="h-full w-full overflow-visible" role="img" aria-label="Analytics line chart">
+        <line x1="0" y1="120" x2="300" y2="120" stroke="#e2e8f0" stroke-width="2" />
+        <polyline points="${points}" fill="none" stroke="${color}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+        ${bars}
+      </svg>`;
+  };
+
+  const renderStatusBars = (rows: { status: Listing['status']; count: number }[]) => {
+    const max = Math.max(1, ...rows.map((row) => row.count));
+    statusBars.innerHTML = rows
+      .map((row) => {
+        const meta = listingStatusMeta[row.status];
+        const width = Math.max(6, (row.count / max) * 100);
+        return `
+          <div>
+            <div class="mb-1 flex items-center justify-between text-xs font-semibold text-slate-500">
+              <span>${meta.label}</span><span>${row.count}</span>
+            </div>
+            <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+              <div class="h-full rounded-full bg-brand-600" style="width: ${width}%"></div>
+            </div>
+          </div>`;
+      })
+      .join('');
+  };
+
   const init = async () => {
     const overview = await getOwnerOverview();
     nameEl.textContent = overview.user.name.split(' ')[0];
@@ -179,6 +275,12 @@ import { listingStatusMeta } from '@/lib/owner';
     statActive.textContent = String(overview.stats.activeListings);
     statLeads.textContent = String(overview.stats.leads);
     statVerification.textContent = verificationLabel(overview.stats.verification.status);
+    statReach.textContent = `${overview.stats.analytics.totals.views} views`;
+    statRooms.textContent = String(overview.stats.analytics.totals.availableRooms);
+    statPhotos.textContent = String(overview.stats.analytics.totals.photos);
+    renderLineChart(enquiryChart, overview.stats.analytics.enquiriesByDay, 'count', '#2563eb');
+    renderLineChart(reachChart, overview.stats.analytics.reachByDay, 'views', '#059669');
+    renderStatusBars(overview.stats.analytics.listingStatuses);
 
     if (overview.stats.newLeads > 0) {
       statNewLeads.textContent = `${overview.stats.newLeads} new`;

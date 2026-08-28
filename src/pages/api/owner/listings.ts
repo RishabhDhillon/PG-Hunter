@@ -10,6 +10,10 @@ const num = (v: unknown): number | null =>
   typeof v === 'number' && Number.isFinite(v) ? v : null;
 const strArr = (v: unknown): string[] =>
   Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+const idArr = (v: unknown): string[] =>
+  Array.isArray(v)
+    ? [...new Set(v.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).map((x) => x.trim()))]
+    : [];
 
 const asOwner = async (context: APIContext) => {
   const auth = await requireAuth(context);
@@ -121,6 +125,18 @@ export async function POST(context: APIContext) {
         'INSERT INTO listing_rooms (listing_id, room_type, occupancy, rent, deposit, available) VALUES (?, ?, ?, ?, ?, ?)'
       )
       .bind(id, r.roomType, r.occupancy, r.rent, r.deposit, r.available)
+      .run();
+  }
+
+  const pendingMediaIds = idArr(body.pendingMediaIds);
+  for (let i = 0; i < pendingMediaIds.length; i++) {
+    await db
+      .prepare(
+        `UPDATE media
+         SET listing_id = ?, sort_order = ?
+         WHERE id = ? AND uploaded_by = ? AND listing_id IS NULL AND type = 'photo'`
+      )
+      .bind(id, i, pendingMediaIds[i], auth.user.id)
       .run();
   }
 

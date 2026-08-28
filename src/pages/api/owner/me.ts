@@ -18,6 +18,24 @@ interface VerificationDocRow {
   reviewed_at: string | null;
 }
 
+const dayKey = (date = new Date()) => date.toISOString().slice(0, 10);
+const lastDays = (days: number) =>
+  Array.from({ length: days }, (_, i) => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - (days - 1 - i));
+    return dayKey(d);
+  });
+
+const countByDate = <T extends { date: string }>(
+  days: string[],
+  rows: T[],
+  pick: (row: T) => number,
+  valueName: 'count' | 'views'
+) => {
+  const map = new Map(rows.map((row) => [row.date, pick(row)]));
+  return days.map((date) => ({ date, [valueName]: map.get(date) ?? 0 }));
+};
+
 /** Backend for the PG Owner landing page (after auth). */
 export async function GET(context: APIContext) {
   const auth = await requireAuth(context);
@@ -46,6 +64,60 @@ export async function GET(context: APIContext) {
     .prepare('SELECT * FROM verification_documents WHERE owner_id = ? ORDER BY created_at DESC')
     .bind(user.id)
     .all<VerificationDocRow>();
+  const statusRows = await db
+    .prepare('SELECT status, COUNT(*) AS count FROM owner_listings WHERE owner_id = ? GROUP BY status')
+    .bind(user.id)
+    .all<{ status: ListingRow['status']; count: number }>();
+  const leadDayRows = await db
+    .prepare(
+      `SELECT substr(l.created_at, 1, 10) AS date, COUNT(*) AS count
+       FROM leads l
+       WHERE l.property_id IN (SELECT id FROM owner_listings WHERE owner_id = ?)
+         AND l.created_at >= date('now', '-13 days')
+       GROUP BY substr(l.created_at, 1, 10)
+       ORDER BY date`
+    )
+    .bind(user.id)
+    .all<{ date: string; count: number }>();
+  const reachDayRows = await db
+    .prepare(
+      `SELECT substr(e.created_at, 1, 10) AS date, COUNT(*) AS views
+       FROM listing_events e
+       JOIN owner_listings ol ON ol.id = e.listing_id
+       WHERE ol.owner_id = ? AND e.event_type IN ('impression', 'view')
+         AND e.created_at >= date('now', '-13 days')
+       GROUP BY substr(e.created_at, 1, 10)
+       ORDER BY date`
+    )
+    .bind(user.id)
+    .all<{ date: string; views: number }>()
+    .catch(() => ({ results: [] }));
+  const topListingRows = await db
+    .prepare(
+      `SELECT ol.id, ol.name,
+              COUNT(DISTINCT l.id) AS enquiries,
+              COUNT(e.id) AS views
+       FROM owner_listings ol
+       LEFT JOIN leads l ON l.property_id = ol.id
+       LEFT JOIN listing_events e ON e.listing_id = ol.id AND e.event_type IN ('impression', 'view')
+       WHERE ol.owner_id = ?
+       GROUP BY ol.id, ol.name
+       ORDER BY views DESC, enquiries DESC, ol.updated_at DESC
+       LIMIT 5`
+    )
+    .bind(user.id)
+    .all<{ id: string; name: string; enquiries: number; views: number }>()
+    .catch(() => ({ results: [] }));
+  const totalsRow = await db
+    .prepare(
+      `SELECT
+         (SELECT COUNT(*) FROM listing_events e JOIN owner_listings ol ON ol.id = e.listing_id WHERE ol.owner_id = ?) AS views,
+         (SELECT COUNT(*) FROM listing_rooms r JOIN owner_listings ol ON ol.id = r.listing_id WHERE ol.owner_id = ? AND r.available = 1) AS availableRooms,
+         (SELECT COUNT(*) FROM media m JOIN owner_listings ol ON ol.id = m.listing_id WHERE ol.owner_id = ? AND m.type = 'photo') AS photos`
+    )
+    .bind(user.id, user.id, user.id)
+    .first<{ views: number; availableRooms: number; photos: number }>()
+    .catch(() => ({ views: 0, availableRooms: 0, photos: 0 }));
 
   const listings = await Promise.all(
     listingsRes.results.map(async (row) => {
@@ -71,6 +143,7 @@ export async function GET(context: APIContext) {
       : docs.length > 0 && docs.every((d) => d.status === 'approved')
         ? 'approved'
         : 'none';
+  const days = lastDays(14);
 
   return json({
     user: publicUser(user),
@@ -81,6 +154,20 @@ export async function GET(context: APIContext) {
       leads: leadsRes.results.length,
       newLeads: leadsRes.results.filter((l) => l.status === 'new').length,
       verification: { status: verificationStatus, documents: docs.length },
+      analytics: {
+        listingStatuses: (['draft', 'pending', 'active', 'rejected'] as ListingRow['status'][]).map((status) => ({
+          status,
+          count: statusRows.results.find((row) => row.status === status)?.count ?? 0,
+        })),
+        enquiriesByDay: countByDate(days, leadDayRows.results, (row) => row.count, 'count'),
+        reachByDay: countByDate(days, reachDayRows.results, (row) => row.views, 'views'),
+        topListings: topListingRows.results,
+        totals: {
+          views: totalsRow?.views ?? 0,
+          availableRooms: totalsRow?.availableRooms ?? 0,
+          photos: totalsRow?.photos ?? 0,
+        },
+      },
     },
     listings: listings.filter(Boolean),
     leads: leadsRes.results,

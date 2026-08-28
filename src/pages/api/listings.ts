@@ -58,5 +58,15 @@ export async function GET(context: APIContext) {
   if (sort === 'price-asc') listings.sort((a, b) => a.minRent - b.minRent);
   else if (sort === 'price-desc') listings.sort((a, b) => b.minRent - a.minRent);
 
+  await Promise.all(
+    listings.map((listing) =>
+      db
+        .prepare("INSERT INTO listing_events (listing_id, event_type, created_at) VALUES (?, 'impression', ?)")
+        .bind(listing.id, new Date().toISOString())
+        .run()
+        .catch(() => undefined)
+    )
+  );
+
   return json({ count: listings.length, listings });
 }

@@ -330,6 +330,7 @@ export interface ListingInput {
   food?: { available: boolean; type?: 'veg' | 'non-veg' | 'both'; monthlyCost?: number };
   amenitySlugs?: string[];
   rooms: ListingRoom[];
+  pendingMediaIds?: string[];
 }
 
 /* ---- Owner API ---------------------------------------------------- */
@@ -367,6 +368,13 @@ export interface OwnerOverview {
     leads: number;
     newLeads: number;
     verification: { status: 'none' | 'pending' | 'approved'; documents: number };
+    analytics: {
+      listingStatuses: { status: Listing['status']; count: number }[];
+      enquiriesByDay: { date: string; count: number }[];
+      reachByDay: { date: string; views: number }[];
+      topListings: { id: string; name: string; enquiries: number; views: number }[];
+      totals: { views: number; availableRooms: number; photos: number };
+    };
   };
   listings: Listing[];
   leads: OwnerLead[];
