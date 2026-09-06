@@ -1,5 +1,6 @@
 import type { APIContext } from 'astro';
 import { currentUser, getDb, json, readBody } from '@/lib/server/auth';
+import { recordEvent } from '@/lib/server/engagement';
 
 export const prerender = false;
 
@@ -34,9 +35,11 @@ export async function POST(context: APIContext) {
       .prepare('DELETE FROM saved_pgs WHERE user_id = ? AND property_id = ?')
       .bind(user.id, propertyId)
       .run();
+    await recordEvent(db, propertyId, user.id, 'UNSAVE', null).catch(() => {});
     return json({ saved: false });
   }
 
   await db.prepare('INSERT INTO saved_pgs (user_id, property_id) VALUES (?, ?)').bind(user.id, propertyId).run();
+  await recordEvent(db, propertyId, user.id, 'SAVE', null).catch(() => {});
   return json({ saved: true });
 }

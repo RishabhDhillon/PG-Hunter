@@ -91,7 +91,15 @@ const collegeOptions = colleges.map((c) => ({ slug: c.slug, shortName: c.shortNa
         <div id="saved-grid" class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3"></div>
       </div>
 
-      <div class="mt-8 flex items-center justify-between gap-4 border-t border-slate-100 pt-6">
+      <div class="mt-8 rounded-xl border border-brand-100 bg-brand-50 px-5 py-4 sm:flex sm:items-center sm:justify-between">
+        <div>
+          <p class="text-sm font-bold text-slate-900">Own a PG? List it on PG Hunter</p>
+          <p class="mt-0.5 text-xs text-slate-600">Reach verified students near your property — you stay in control of pricing and availability.</p>
+        </div>
+        <a href="/for-owners" class="btn-secondary mt-3 shrink-0 sm:mt-0">For Owners</a>
+      </div>
+
+      <div class="mt-6 flex items-center justify-between gap-4 border-t border-slate-100 pt-6">
         <p class="text-xs text-slate-400">Signed in to your PG Hunter account.</p>
         <button id="logout-btn" type="button" class="btn-secondary text-rose-600 hover:bg-rose-50">
           <LogOut class="h-4 w-4" />
@@ -184,11 +192,16 @@ const collegeOptions = colleges.map((c) => ({ slug: c.slug, shortName: c.shortNa
   const init = async () => {
     const user = await getSession();
     if (!user) return redirectToLogin('/profile');
+    // Owners have a dedicated shell at /owner/profile — keep the student page student-only.
+    if (user.role === 'owner' || user.isAdmin) {
+      window.location.replace('/owner/profile');
+      return;
+    }
 
     avatar.textContent = initialsOf(user.name);
     nameEl.textContent = user.name;
     emailEl.textContent = user.email;
-    roleEl.textContent = user.role === 'owner' ? 'Owner' : 'Student';
+    roleEl.textContent = 'Student';
     providerEl.textContent = user.provider === 'google' ? 'Google' : 'Email';
     sinceEl.textContent = user.createdAt
       ? `· Member since ${new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}`

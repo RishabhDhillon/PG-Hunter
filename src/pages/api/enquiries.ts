@@ -1,5 +1,6 @@
 import type { APIContext } from 'astro';
 import { currentUser, getDb, json, readBody } from '@/lib/server/auth';
+import { recordEvent } from '@/lib/server/engagement';
 
 export const prerender = false;
 
@@ -11,7 +12,8 @@ export async function POST(context: APIContext) {
   const propertyId = String(body?.propertyId ?? '').trim();
   if (!propertyId) return json({ error: 'Missing property id.' }, 400);
 
-  await getDb()
+  const db = getDb();
+  await db
     .prepare(
       'INSERT INTO leads (property_id, student_id, budget, move_in_month, message, source) VALUES (?, ?, ?, ?, ?, ?)'
     )
@@ -24,6 +26,7 @@ export async function POST(context: APIContext) {
       'web'
     )
     .run();
+  await recordEvent(db, propertyId, user.id, 'ENQUIRY', null).catch(() => {});
 
   return json({ ok: true });
 }

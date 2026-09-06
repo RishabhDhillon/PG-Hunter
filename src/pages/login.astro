@@ -23,7 +23,20 @@ const googleMark = `<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
       <div id="auth-error" class="mt-4 hidden rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm font-medium text-rose-700" role="alert"></div>
       <div id="auth-success" class="mt-4 hidden rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm font-medium text-emerald-700" role="status"></div>
 
-      <div class="mt-6 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Account access">
+      <!-- Google is the primary, server-side OAuth — presented first per Phase 2 -->
+      <button id="google-btn" type="button" class="btn-secondary mt-6 w-full border-slate-200 bg-white shadow-sm hover:bg-slate-50">
+        <Fragment set:html={googleMark} />
+        Continue with Google
+      </button>
+      <p class="mt-2 text-center text-xs text-slate-500">Works for both students and owners. New accounts respect your selected role.</p>
+
+      <div class="my-6 flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-slate-400">
+        <span class="h-px flex-1 bg-slate-200" aria-hidden="true"></span>
+        or
+        <span class="h-px flex-1 bg-slate-200" aria-hidden="true"></span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Account access">
         <button
           id="tab-login"
           type="button"
@@ -132,17 +145,6 @@ const googleMark = `<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
           <ArrowRight class="h-4 w-4" />
         </button>
       </form>
-
-      <div class="my-6 flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-slate-400">
-        <span class="h-px flex-1 bg-slate-200" aria-hidden="true"></span>
-        or
-        <span class="h-px flex-1 bg-slate-200" aria-hidden="true"></span>
-      </div>
-
-      <button id="google-btn" type="button" class="btn-secondary w-full">
-        <Fragment set:html={googleMark} />
-        Continue with Google
-      </button>
 
       <p class="mt-6 text-center text-sm text-slate-500">
         <span id="switch-hint">Don't have an account?</span>{' '}
@@ -309,7 +311,9 @@ const googleMark = `<svg viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
     const original = googleBtn.innerHTML;
     googleBtn.disabled = true;
     googleBtn.textContent = 'Redirecting to Google…';
-    const { error } = await signInWithGoogle(safeNext);
+    const selectedRole = (document.querySelector('input[name="role"]:checked') as HTMLInputElement | null)?.value;
+    const roleForGoogle = (forceOwner || selectedRole === 'owner') ? ('owner' as const) : undefined;
+    const { error } = await signInWithGoogle(safeNext, roleForGoogle);
     if (error) {
       googleBtn.disabled = false;
       googleBtn.innerHTML = original;

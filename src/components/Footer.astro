@@ -43,6 +43,9 @@ const year = new Date().getFullYear();
           <li><a href="/for-owners" class="text-slate-600 transition-colors hover:text-brand-700">Owner login</a></li>
           <li><a href="/for-owners#verification" class="text-slate-600 transition-colors hover:text-brand-700">Verification</a></li>
         </ul>
+        <p id="footer-owner-cta" class="mt-4 rounded-xl border border-brand-100 bg-brand-50 px-3 py-2.5 text-xs leading-relaxed text-brand-800">
+          Own a PG? <a href="/for-owners" class="font-semibold underline decoration-brand-300 hover:text-brand-700">List it on PG Hunter</a> — reach verified students near your property.
+        </p>
       </nav>
     </div>
 
@@ -54,3 +57,14 @@ const year = new Date().getFullYear();
     </div>
   </div>
 </footer>
+
+<script>
+  // Subtle CTA visibility: hide for owners (they already list), show for students/guests.
+  import { getSession } from '@/lib/auth';
+  const cta = document.getElementById('footer-owner-cta');
+  if (cta) {
+    getSession().then((u) => {
+      if (u?.role === 'owner' || u?.isAdmin) cta.classList.add('hidden');
+    });
+  }
+</script>

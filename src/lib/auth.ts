@@ -145,10 +145,14 @@ export const login = async (input: { email: string; password: string }): Promise
 /**
  * Start Google OAuth. The user leaves to Google and the Worker's
  * /api/auth/google/callback completes the sign-in and redirects back.
+ * When sign-up was initiated via ?role=owner, that intent is preserved via
+ * the `role` query so a brand-new Google account can be created as an owner.
  */
-export const signInWithGoogle = async (next?: string): Promise<{ error?: string }> => {
+export const signInWithGoogle = async (next?: string, role?: 'student' | 'owner'): Promise<{ error?: string }> => {
   const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : '/';
-  window.location.href = `/api/auth/google?next=${encodeURIComponent(safeNext)}`;
+  const params = new URLSearchParams({ next: safeNext });
+  if (role === 'owner') params.set('role', 'owner');
+  window.location.href = `/api/auth/google?${params.toString()}`;
   return {};
 };
 

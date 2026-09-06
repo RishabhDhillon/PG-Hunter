@@ -9,7 +9,7 @@ import {
   syncAdminFlag,
   type UserRow,
 } from '@/lib/server/auth';
-import { exchangeGoogleCode, oauthCallbackParams, popOAuthNext, verifyOAuthState } from '@/lib/server/oauth';
+import { exchangeGoogleCode, oauthCallbackParams, popOAuthNext, popOAuthRole, verifyOAuthState } from '@/lib/server/oauth';
 
 export const prerender = false;
 
@@ -26,6 +26,9 @@ export async function GET(context: APIContext) {
 
   const db = getDb();
   const now = nowIso();
+  // Role requested via ?role=owner on the initial /api/auth/google call.
+  // Existing users keep their stored role; this only affects brand-new Google accounts.
+  const requestedRole = popOAuthRole(context);
   const existing = await db.prepare('SELECT * FROM users WHERE email = ?').bind(profile.email).first<UserRow>();
 
   let user: UserRow;
@@ -36,6 +39,7 @@ export async function GET(context: APIContext) {
       .run();
     user = { ...existing, provider: 'google', name: profile.name, avatar_url: profile.picture, updated_at: now };
   } else {
+    const newRole = requestedRole === 'owner' ? 'owner' : 'student';
     user = {
       id: crypto.randomUUID(),
       email: profile.email,
@@ -45,7 +49,7 @@ export async function GET(context: APIContext) {
       name: profile.name,
       phone: null,
       college_slug: null,
-      role: 'student',
+      role: newRole,
       is_admin: 0,
       avatar_url: profile.picture,
       created_at: now,
@@ -56,7 +60,7 @@ export async function GET(context: APIContext) {
         `INSERT INTO users (id, email, password_hash, salt, provider, name, phone, college_slug, role, avatar_url, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .bind(user.id, user.email, null, null, 'google', user.name, null, null, 'student', user.avatar_url, now, now)
+      .bind(user.id, user.email, null, null, 'google', user.name, null, null, newRole, user.avatar_url, now, now)
       .run();
   }
 

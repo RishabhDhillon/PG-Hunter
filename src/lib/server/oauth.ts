@@ -11,10 +11,11 @@
 
 import { env } from 'cloudflare:workers';
 import type { APIContext } from 'astro';
-import { getRequestUrl, getSiteUrl, randomHex, safePath } from './auth';
+import { getRequestUrl, getSiteUrl, randomHex, safePath, timingSafeEqual } from './auth';
 
 export const OAUTH_STATE_COOKIE = 'ph_oauth_state';
 export const OAUTH_NEXT_COOKIE = 'ph_oauth_next';
+export const OAUTH_ROLE_COOKIE = 'ph_oauth_role';
 
 export const isOAuthConfigured = (): boolean =>
   Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
@@ -83,7 +84,14 @@ export const verifyOAuthState = (context: APIContext, state: string | null): boo
   const expected = context.cookies.get(OAUTH_STATE_COOKIE)?.value;
   context.cookies.delete(OAUTH_STATE_COOKIE, { path: '/' });
   if (!expected || !state) return false;
-  return state === expected;
+  return timingSafeEqual(state, expected);
+};
+
+/** Role requested via Google sign-in (?role=owner). Validated server-side. */
+export const popOAuthRole = (context: APIContext): 'owner' | 'student' => {
+  const raw = context.cookies.get(OAUTH_ROLE_COOKIE)?.value;
+  context.cookies.delete(OAUTH_ROLE_COOKIE, { path: '/' });
+  return raw === 'owner' ? 'owner' : 'student';
 };
 
 /** Convenience for the callback: parse the full query string reliably. */
