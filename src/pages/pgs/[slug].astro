@@ -19,7 +19,8 @@ import {
   ThumbsUp,
   ThumbsDown,
   Star,
-  Heart,
+  ChevronLeft,
+  ChevronRight,
 } from '@lucide/astro';
 
 import { propertyBySlug, activeProperties, startingRent } from '@/data/properties';
@@ -62,7 +63,7 @@ const availableRooms = p.rooms.filter((r) => r.available).length;
       </ol>
     </nav>
 
-    <div class="mt-6 flex flex-wrap items-start justify-between gap-4">
+    <div class="mt-6">
       <div>
         <div class="flex flex-wrap items-center gap-2">
           <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">{p.name}</h1>
@@ -85,75 +86,109 @@ const availableRooms = p.rooms.filter((r) => r.available).length;
           })}
         </ul>
       </div>
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          data-save-btn
-          data-property-id={p.id}
-          class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition-colors hover:bg-brand-50 hover:text-brand-600"
-          aria-label={`Save ${p.name} to your shortlist`}
-          aria-pressed="false"
-          title="Save to shortlist"
-        >
-          <Bookmark class="h-5 w-5" />
-        </button>
-        <button
-          type="button"
-          data-like-btn
-          data-property-id={p.id}
-          class="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
-          aria-label="Like"
-          aria-pressed="false"
-          title="Like"
-        >
-          <ThumbsUp class="h-4 w-4" /> <span data-like-count>—</span>
-        </button>
-        <button
-          type="button"
-          data-dislike-btn
-          data-property-id={p.id}
-          class="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-rose-50 hover:text-rose-700"
-          aria-label="Dislike"
-          aria-pressed="false"
-          title="Dislike"
-        >
-          <ThumbsDown class="h-4 w-4" /> <span data-dislike-count>—</span>
-        </button>
-      </div>
-    </div>
-
-    <div id="engagement-bar" class="mt-4 flex flex-wrap items-center gap-4 rounded-xl bg-slate-50 px-4 py-3 text-xs font-medium text-slate-600">
-      <span class="inline-flex items-center gap-1.5"><Eye class="h-4 w-4 text-slate-400" /> <span id="eng-views">—</span> views</span>
-      <span class="inline-flex items-center gap-1.5"><Heart class="h-4 w-4 text-rose-400" /> <span id="eng-saves">—</span> saves</span>
-      <span class="inline-flex items-center gap-1.5"><ThumbsUp class="h-4 w-4 text-emerald-500" /> <span id="eng-likes">—</span> likes</span>
-      <span class="inline-flex items-center gap-1.5"><ThumbsDown class="h-4 w-4 text-slate-400" /> <span id="eng-dislikes">—</span> dislikes</span>
-      <span class="ml-auto hidden text-xs text-slate-400 sm:inline">Trusted student marketplace</span>
     </div>
 
     <div class="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]">
       <div class="min-w-0">
-        <figure>
-          <img
-            src={photos[0]?.externalId}
-            alt={p.name}
-            width="800"
-            height="600"
-            class="aspect-[16/10] w-full rounded-2xl object-cover shadow-card"
-          />
-        </figure>
+        <section aria-roledescription="carousel" aria-label={`Photos of ${p.name}`} class="relative">
+          {photos.length > 0 ? (
+            <>
+              <div
+                id="pg-gallery"
+                tabindex="0"
+                class="flex snap-x snap-mandatory overflow-x-auto scroll-smooth rounded-2xl shadow-card [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              >
+                {photos.map((photo, i) => (
+                  <figure class="w-full shrink-0 snap-center">
+                    <img
+                      src={photo.externalId}
+                      alt={photo.title || p.name}
+                      loading={i === 0 ? 'eager' : 'lazy'}
+                      decoding="async"
+                      width="800"
+                      height="500"
+                      class="aspect-[16/10] w-full object-cover"
+                    />
+                  </figure>
+                ))}
+              </div>
 
-        <div class="mt-4 grid grid-cols-4 gap-3">
-          {photos.slice(1, 5).map((photo) => (
-            <img
-              src={photo.externalId}
-              alt={photo.title}
-              loading="lazy"
-              decoding="async"
-              width="400"
-              height="300"
-              class="aspect-[4/3] w-full rounded-xl object-cover"
-            />
-          ))}
+              {photos.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    data-gallery-prev
+                    class="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-card transition hover:bg-white disabled:pointer-events-none disabled:opacity-0"
+                    aria-label="Previous photo"
+                  >
+                    <ChevronLeft class="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    data-gallery-next
+                    class="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-card transition hover:bg-white disabled:pointer-events-none disabled:opacity-0"
+                    aria-label="Next photo"
+                  >
+                    <ChevronRight class="h-5 w-5" />
+                  </button>
+                  <p class="pointer-events-none absolute bottom-3 right-3 rounded-full bg-slate-900/70 px-2.5 py-1 text-xs font-semibold text-white">
+                    <span data-gallery-index>1</span> / {photos.length}
+                  </p>
+                </>
+              )}
+            </>
+          ) : (
+            <div class="flex aspect-[16/10] w-full items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500">
+              No photos yet for this property.
+            </div>
+          )}
+        </section>
+
+        <div
+          id="engagement-bar"
+          class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl bg-slate-50 px-3 py-2.5 sm:px-4"
+        >
+          <span class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600">
+            <Eye class="h-4 w-4 text-slate-400" />
+            <span id="eng-views">—</span> views
+          </span>
+
+          <div class="ml-auto flex items-center gap-1.5">
+            <button
+              type="button"
+              data-save-btn
+              data-property-id={p.id}
+              class="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition-colors hover:border-brand-200 hover:bg-brand-50 hover:text-brand-600"
+              aria-label={`Save ${p.name} to your shortlist`}
+              aria-pressed="false"
+              title="Save to shortlist"
+            >
+              <Bookmark class="h-4 w-4" />
+              <span data-save-label>Save</span>
+            </button>
+            <button
+              type="button"
+              data-like-btn
+              data-property-id={p.id}
+              class="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition-colors hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+              aria-label="Like"
+              aria-pressed="false"
+              title="Like"
+            >
+              <ThumbsUp class="h-4 w-4" /> <span data-like-count>—</span>
+            </button>
+            <button
+              type="button"
+              data-dislike-btn
+              data-property-id={p.id}
+              class="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+              aria-label="Dislike"
+              aria-pressed="false"
+              title="Dislike"
+            >
+              <ThumbsDown class="h-4 w-4" /> <span data-dislike-count>—</span>
+            </button>
+          </div>
         </div>
 
         <section aria-labelledby="walkthrough-heading" class="mt-8">
@@ -423,9 +458,6 @@ const availableRooms = p.rooms.filter((r) => r.available).length;
   const propertyId = saveBtn?.dataset.propertyId ?? likeBtn?.dataset.propertyId ?? '';
 
   const engViews = document.getElementById('eng-views') as HTMLElement | null;
-  const engSaves = document.getElementById('eng-saves') as HTMLElement | null;
-  const engLikes = document.getElementById('eng-likes') as HTMLElement | null;
-  const engDislikes = document.getElementById('eng-dislikes') as HTMLElement | null;
   const likeCountEl = likeBtn?.querySelector('[data-like-count]') as HTMLElement | null;
   const dislikeCountEl = dislikeBtn?.querySelector('[data-dislike-count]') as HTMLElement | null;
 
@@ -438,6 +470,8 @@ const availableRooms = p.rooms.filter((r) => r.available).length;
     btn.setAttribute('aria-label', saved ? 'Remove from shortlist' : 'Save to shortlist');
     btn.title = saved ? 'Remove from shortlist' : 'Save to shortlist';
     if (svg) svg.style.fill = saved ? 'currentColor' : 'none';
+    const label = btn.querySelector('[data-save-label]');
+    if (label) label.textContent = saved ? 'Saved' : 'Save';
   };
 
   const setReactionState = (reaction: 'like' | 'dislike' | null) => {
@@ -457,9 +491,6 @@ const availableRooms = p.rooms.filter((r) => r.available).length;
     try {
       const stats = await getStats(propertyId);
       if (engViews) engViews.textContent = String(stats.views);
-      if (engSaves) engSaves.textContent = String(stats.saves);
-      if (engLikes) engLikes.textContent = String(stats.likes);
-      if (engDislikes) engDislikes.textContent = String(stats.dislikes);
       if (likeCountEl) likeCountEl.textContent = String(stats.likes);
       if (dislikeCountEl) dislikeCountEl.textContent = String(stats.dislikes);
       setReactionState(stats.userReaction);
@@ -496,8 +527,6 @@ const availableRooms = p.rooms.filter((r) => r.available).length;
       const res = await setReaction(propertyId, next);
       if (likeCountEl) likeCountEl.textContent = String(res.likes);
       if (dislikeCountEl) dislikeCountEl.textContent = String(res.dislikes);
-      if (engLikes) engLikes.textContent = String(res.likes);
-      if (engDislikes) engDislikes.textContent = String(res.dislikes);
       setReactionState(res.userReaction);
     } catch (e) {
       // silent
@@ -506,6 +535,60 @@ const availableRooms = p.rooms.filter((r) => r.available).length;
 
   likeBtn?.addEventListener('click', () => handleReaction('like'));
   dislikeBtn?.addEventListener('click', () => handleReaction('dislike'));
+
+  // ---- Photo carousel (native scroll-snap, no dependency) --------------
+  const gallery = document.getElementById('pg-gallery') as HTMLElement | null;
+  if (gallery) {
+    const total = gallery.children.length;
+    const indexEl = gallery.parentElement?.querySelector('[data-gallery-index]') as HTMLElement | null;
+    const prevBtn = document.querySelector<HTMLButtonElement>('[data-gallery-prev]');
+    const nextBtn = document.querySelector<HTMLButtonElement>('[data-gallery-next]');
+
+    const currentIndex = () =>
+      Math.min(Math.max(Math.round(gallery.scrollLeft / gallery.clientWidth), 0), total - 1);
+
+    const syncGallery = () => {
+      const i = currentIndex();
+      if (indexEl) indexEl.textContent = String(i + 1);
+      prevBtn?.toggleAttribute('disabled', i === 0);
+      nextBtn?.toggleAttribute('disabled', i === total - 1);
+    };
+
+    const goTo = (i: number) => {
+      gallery.scrollTo({ left: i * gallery.clientWidth, behavior: 'smooth' });
+    };
+
+    prevBtn?.addEventListener('click', () => goTo(currentIndex() - 1));
+    nextBtn?.addEventListener('click', () => goTo(currentIndex() + 1));
+
+    let ticking = false;
+    gallery.addEventListener(
+      'scroll',
+      () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => {
+          syncGallery();
+          ticking = false;
+        });
+      },
+      { passive: true }
+    );
+
+    // Keyboard: the track is focusable, so arrow keys page through photos.
+    gallery.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        goTo(currentIndex() + 1);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        goTo(currentIndex() - 1);
+      }
+    });
+
+    window.addEventListener('resize', syncGallery, { passive: true });
+    syncGallery();
+  }
 
   // ---- Student Experiences -------------------------------------------
   const expList = document.getElementById('experiences-list') as HTMLElement | null;

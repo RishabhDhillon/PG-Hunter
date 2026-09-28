@@ -9,6 +9,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
+    "test": "node --experimental-strip-types --test test/*.test.mts",
     "deploy": "astro build && wrangler deploy",
     "astro": "astro"
   },

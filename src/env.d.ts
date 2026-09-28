@@ -28,6 +28,13 @@ declare namespace Cloudflare {
     GOOGLE_CLIENT_SECRET?: string;
     /** Optional site URL override for OAuth redirect URIs. */
     SITE_URL?: string;
+    /**
+     * Optional salt for rate-limit identifier hashing.
+     * Without it, identifiers are hashed with a bare SHA-256. Set it
+     * (`wrangler secret put RATE_LIMIT_SALT`) to make the stored digests
+     * unlinkable to the original IP/user id.
+     */
+    RATE_LIMIT_SALT?: string;
   }
 }
 
