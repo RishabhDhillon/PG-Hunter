@@ -11,6 +11,8 @@
 import { env } from 'cloudflare:workers';
 import type { APIContext } from 'astro';
 
+import { mediaUrl } from './media';
+
 /** A row from the `users` table (auth + profile in one place for the MVP). */
 export interface UserRow {
   id: string;
@@ -21,6 +23,11 @@ export interface UserRow {
   name: string;
   phone: string | null;
   college_slug: string | null;
+  city: string | null;
+  moving_in_month: string | null;
+  budget_pref: string | null;
+  availability: string | null;
+  message_to_owners: string | null;
   role: 'student' | 'owner';
   is_admin: number;
   avatar_url: string | null;
@@ -82,42 +89,23 @@ export const randomHex = (bytes: number): string => {
 };
 
 /* ------------------------------------------------------------------ */
-/* Password hashing (PBKDF2-SHA256 via WebCrypto — workerd native)     */
+/* Password hashing                                                    */
 /* ------------------------------------------------------------------ */
 
+/**
+ * The hashing primitives live in ./password so they stay importable from plain
+ * Node (this module pulls in `cloudflare:workers`). Re-exported here because
+ * existing callers import them from this module.
+ */
+export {
+  PBKDF2_ITERATIONS,
+  hashPassword,
+  verifyPassword,
+  parseStoredHash,
+  timingSafeEqual,
+} from './password';
+
 export const generateSalt = (): string => randomHex(16);
-
-export const hashPassword = async (password: string, saltHex: string): Promise<string> => {
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(password),
-    'PBKDF2',
-    false,
-    ['deriveBits']
-  );
-  const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt: hexBytes(saltHex), iterations: 210_000, hash: 'SHA-256' },
-    key,
-    256
-  );
-  return bytesToHex(new Uint8Array(bits));
-};
-
-const hexBytes = (hex: string): Uint8Array<ArrayBuffer> => {
-  const out = new Uint8Array(new ArrayBuffer(hex.length / 2));
-  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  return out;
-};
-
-const bytesToHex = (bytes: Uint8Array): string =>
-  Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-
-export const timingSafeEqual = (a: string, b: string): boolean => {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-};
 
 /* ------------------------------------------------------------------ */
 /* Sessions + cookies                                                  */
@@ -139,7 +127,8 @@ export const getUserFromSession = async (db: D1Database, token: string | undefin
   const row = await db
     .prepare(
       `SELECT u.id, u.email, u.password_hash, u.salt, u.provider, u.name, u.phone,
-              u.college_slug, u.role, u.is_admin, u.avatar_url, u.created_at, u.updated_at
+              u.college_slug, u.city, u.moving_in_month, u.budget_pref, u.availability,
+              u.message_to_owners, u.role, u.is_admin, u.avatar_url, u.created_at, u.updated_at
        FROM sessions s
        JOIN users u ON u.id = s.user_id
        WHERE s.token = ? AND s.expires_at > ?`
@@ -212,6 +201,22 @@ export const requireAdmin = async (
 /* Serialization                                                       */
 /* ------------------------------------------------------------------ */
 
+/**
+ * `users.avatar_url` holds either:
+ *   - an R2 object key (avatars/{userId}/{uuid}.webp) for uploaded photos, or
+ *   - an absolute https URL for accounts whose picture comes from Google.
+ *
+ * Only the R2 key is rewritten into the /api/media route; an absolute URL is
+ * passed through untouched. Prefixing the Google URL produced
+ * `/api/media/https://lh3.googleusercontent.com/...`, which 404s and left the
+ * profile showing a broken-image icon after every fresh sign-in.
+ */
+const avatarUrl = (value: string | null): string | null => {
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  return value.startsWith('/') ? value : mediaUrl(value);
+};
+
 /** The app-facing user object (never includes password material). */
 export const publicUser = (u: UserRow) => ({
   id: u.id,
@@ -221,7 +226,12 @@ export const publicUser = (u: UserRow) => ({
   isAdmin: Boolean(u.is_admin),
   phone: u.phone ?? undefined,
   collegeSlug: u.college_slug ?? undefined,
-  avatar: u.avatar_url ?? null,
+  city: u.city ?? undefined,
+  movingInMonth: u.moving_in_month ?? undefined,
+  budgetPref: u.budget_pref ?? undefined,
+  availability: u.availability ?? undefined,
+  messageToOwners: u.message_to_owners ?? undefined,
+  avatar: avatarUrl(u.avatar_url),
   createdAt: u.created_at,
   provider: u.provider,
 });

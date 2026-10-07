@@ -11,8 +11,12 @@ const suggestions = [
 ];
 ---
 
-<form action="/pgs-near-you" method="get" class="card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_auto] lg:items-center">
-  <label class="field focus-within:bg-white">
+<form
+  action="/pgs-near-you"
+  method="get"
+  class="card grid grid-cols-2 gap-2.5 p-3 sm:p-4 lg:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))_auto] lg:items-stretch"
+>
+  <label class="field col-span-2 lg:col-span-1 lg:min-h-12">
     <span class="sr-only">College or locality</span>
     <Search class="h-5 w-5 shrink-0 text-brand-600" />
     <input
@@ -28,7 +32,7 @@ const suggestions = [
     </datalist>
   </label>
 
-  <label class="field">
+  <label class="field lg:min-h-12">
     <span class="sr-only">Budget</span>
     <select name="budget" class="w-full appearance-none bg-transparent outline-none">
       <option value="">Budget — Any</option>
@@ -40,7 +44,7 @@ const suggestions = [
     <ChevronDown class="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
   </label>
 
-  <label class="field">
+  <label class="field lg:min-h-12">
     <span class="sr-only">Room type</span>
     <select name="roomType" class="w-full appearance-none bg-transparent outline-none">
       <option value="">Room type — Any</option>
@@ -51,11 +55,26 @@ const suggestions = [
     <ChevronDown class="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
   </label>
 
-  <button type="submit" class="btn-primary h-11 w-full lg:w-auto">Search PGs</button>
+  <label class="field lg:min-h-12">
+    <span class="sr-only">Gender</span>
+    <select name="gender" class="w-full appearance-none bg-transparent outline-none">
+      <option value="">Gender — Any</option>
+      <option value="boys">Boys PG</option>
+      <option value="girls">Girls PG</option>
+      <option value="co-ed">Co-ed</option>
+    </select>
+    <ChevronDown class="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+  </label>
+
+  <button type="submit" class="btn-primary h-11 col-span-1 lg:h-auto lg:px-7">
+    <Search class="h-4 w-4 lg:hidden" aria-hidden="true" />
+    <span class="hidden lg:inline">Search</span>
+    <span class="lg:hidden">Search</span>
+  </button>
 </form>
 
 <script>
-  // Keep the search fields in sync with the URL (?q=, ?budget=, ?roomType=).
+  // Keep the search fields in sync with the URL (?q=, ?budget=, ?roomType=, ?gender=).
   // Done client-side because the server cannot see query strings in this
   // static-first setup.
   const params = new URLSearchParams(window.location.search);
@@ -70,4 +89,5 @@ const suggestions = [
   };
   setSelect('budget');
   setSelect('roomType');
+  setSelect('gender');
 </script>

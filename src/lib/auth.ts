@@ -22,6 +22,11 @@ export interface AppUser {
   isAdmin?: boolean;
   phone?: string;
   collegeSlug?: string;
+  city?: string;
+  movingInMonth?: string;
+  budgetPref?: string;
+  availability?: string;
+  messageToOwners?: string;
   avatar?: string | null;
   createdAt: string;
   provider: string;
@@ -102,12 +107,18 @@ export const getCurrentSession = (): Promise<AppUser | null> => getSession();
 
 const friendlyError = (message: string): string => message;
 
-/** Create a new account with email + password. */
+/**
+ * Create a new account with email + password.
+ *
+ * `ref` is an optional creator code (see /creator): the owner sign-up flow
+ * carries it from `?ref=` in the share link so the creator gets credited.
+ */
 export const register = async (input: {
   name: string;
   email: string;
   password: string;
   role?: 'student' | 'owner';
+  ref?: string;
 }): Promise<AuthResult> => {
   const name = input.name.trim();
   const email = input.email.trim().toLowerCase();
@@ -119,7 +130,13 @@ export const register = async (input: {
   try {
     const { user } = await api<{ user: AppUser }>('/api/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ name, email, password: input.password, role: input.role ?? 'student' }),
+      body: JSON.stringify({
+        name,
+        email,
+        password: input.password,
+        role: input.role ?? 'student',
+        ref: input.ref,
+      }),
     });
     emit(user);
     return { user };
@@ -187,13 +204,49 @@ export const initialsOf = (name: string): string => {
 export const updateProfile = async (patch: {
   name?: string;
   phone?: string;
-  collegeSlug?: string;
+  /** `null` clears a field; omitting it leaves the stored value untouched. */
+  collegeSlug?: string | null;
+  city?: string | null;
+  movingInMonth?: string | null;
+  budgetPref?: string | null;
+  availability?: string | null;
+  messageToOwners?: string | null;
 }): Promise<{ user?: AppUser; error?: string }> => {
   try {
     const { user } = await api<{ user: AppUser }>('/api/profile', {
       method: 'PUT',
       body: JSON.stringify(patch),
     });
+    emit(user);
+    return { user };
+  } catch (e) {
+    return { error: friendlyError((e as Error).message) };
+  }
+};
+
+/**
+ * Replace the profile picture. The Worker stores the bytes in R2 and answers
+ * with the updated user, so the header avatar updates from the same event bus
+ * as everything else.
+ */
+export const uploadAvatar = async (
+  file: File
+): Promise<{ user?: AppUser; error?: string }> => {
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const { user } = await apiForm<{ user: AppUser }>('/api/profile/avatar', form);
+    emit(user);
+    return { user };
+  } catch (e) {
+    return { error: friendlyError((e as Error).message) };
+  }
+};
+
+/** Drop back to the initials avatar. */
+export const removeAvatar = async (): Promise<{ user?: AppUser; error?: string }> => {
+  try {
+    const { user } = await api<{ user: AppUser }>('/api/profile/avatar', { method: 'DELETE' });
     emit(user);
     return { user };
   } catch (e) {
@@ -501,11 +554,43 @@ export const setListingStatus = (
   id: string,
   patch: {
     status: 'pending' | 'active' | 'rejected';
-    verificationStatus?: string;
+    /** Optional plan for the publication window opened by approving. */
+    plan?: 'basic' | 'verified';
     rejectionReason?: string;
   }
 ): Promise<{ listing: Listing }> =>
   api(`/api/admin/listings/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(patch) });
+
+/**
+ * Grant a verification badge.
+ *
+ * Deliberately separate from `setListingStatus`: approving a listing is never
+ * the same act as verifying it, and the server rejects a grant that does not
+ * carry evidence of a real verification process.
+ */
+export const grantListingVerification = (
+  id: string,
+  grant: {
+    tier: 'pg_hunter_verified' | 'rishabh_irl_verified';
+    method: 'document_review' | 'video_review' | 'physical_visit';
+    evidence: string;
+    note?: string;
+  }
+): Promise<{ listing: Listing }> =>
+  api(`/api/admin/listings/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ action: 'grant', ...grant }),
+  });
+
+/** Withdraw a verification badge. The reason is recorded on the ledger. */
+export const revokeListingVerification = (
+  id: string,
+  reason: string
+): Promise<{ listing: Listing }> =>
+  api(`/api/admin/listings/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ action: 'revoke', reason }),
+  });
 
 export const getAdminVerifications = (status?: string): Promise<{ documents: AdminVerificationDoc[] }> =>
   api(`/api/admin/verifications${status ? `?status=${encodeURIComponent(status)}` : ''}`);

@@ -1,4 +1,9 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+/* shadcn/ui ships dark: variants; the site is light-only for now, so the
+   variant is inert until a `.dark` class is ever added to <html>. */
+@custom-variant dark (&:is(.dark *));
 
 @theme {
   /* Brand — PG Hunter purple (source of truth: approved homepage reference) */
@@ -32,7 +37,110 @@
   --shadow-popover: 0 12px 32px -8px rgb(15 10 30 / 0.16), 0 4px 12px -4px rgb(15 10 30 / 0.08);
 }
 
+/* ------------------------------------------------------------------ */
+/* shadcn/ui tokens                                                    */
+/*                                                                     */
+/* The React components in src/components/ui/* are written against the */
+/* shadcn semantic scale (bg-primary, text-muted-foreground, ...). Those */
+/* names are mapped here onto the PG Hunter palette above so the two     */
+/* systems read as one brand instead of a bolt-on. No .dark block yet:   */
+/* PG Hunter is light-only.                                             */
+/* ------------------------------------------------------------------ */
+
+:root {
+  /* Tight, near-square. The design language that was approved on /profile is
+     square-edged: cards have no radius at all and controls only a hint of it,
+     so the radius scale starts small rather than at shadcn's 12px default. */
+  --radius: 0.25rem;
+
+  --background: #ffffff;
+  --foreground: #0f172a; /* slate-900 */
+
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+
+  --primary: #7a42e6; /* brand-600 */
+  --primary-foreground: #ffffff;
+
+  --secondary: #f1f5f9; /* slate-100 */
+  --secondary-foreground: #1e293b; /* slate-800 */
+
+  --muted: #f8fafc; /* slate-50 */
+  --muted-foreground: #64748b; /* slate-500 */
+
+  /* shadcn's `accent` is the hover surface, not the CTA yellow — the CTA
+     stays .accent-400 in the hand-written Astro components. */
+  --accent: #efe9fe; /* brand-100 */
+  --accent-foreground: #482388; /* brand-900 */
+
+  --destructive: #e11d48; /* rose-600 */
+  --destructive-foreground: #ffffff;
+
+  --border: #e2e8f0; /* slate-200 */
+  --input: #e2e8f0;
+  --ring: #8f62f1; /* brand-500 */
+
+  --chart-1: #7a42e6;
+  --chart-2: #eab308;
+  --chart-3: #10b981;
+  --chart-4: #0ea5e9;
+  --chart-5: #f43f5e;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: 0;
+  --radius-md: 0.125rem;
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 2px);
+
+  /* Pixel-art accents. The profile banner proved the motif works; elsewhere it
+     shows up as small stepped details rather than full banners. */
+  --color-pixel-ink: #2c125d; /* brand-950 */
+  --color-pixel-mid: #7a42e6; /* brand-600 */
+  --color-pixel-lit: #fde047; /* accent-300 */
+}
+
 @layer base {
+  /* Tailwind v4 dropped the old `border-color: gray-200` default in favour of
+     `currentColor`, so a bare `border` utility renders in the text colour. The
+     shadcn components in src/components/ui/* rely on the shadcn token scale, so
+     point the bare `border` utility at it. Explicit classes (border-slate-200,
+     border-brand-100, ...) still win. */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-border);
+  }
+
   html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
@@ -47,6 +155,90 @@
     @apply bg-brand-200 text-brand-900;
   }
 
+  /*
+   * Motion entrance states.
+   *
+   * Elements are hidden here rather than from JS so they never flash into
+   * their final position before Motion hydrates. Three guarantees keep this
+   * safe:
+   *   1. the rules only apply under `.js-motion`, which an inline script in
+   *      the layout adds — so no-JS users see everything,
+   *   2. reduced-motion users never get the class, and this media query
+   *      forces everything visible as a second line of defence,
+   *   3. a 2.5s failsafe removes the class if the animation module fails to
+   *      load, so a chunk error can never leave a page blank.
+   *
+   * Keep this list in step with REVEALED_SELECTORS in src/lib/motion/ui.ts.
+   */
+  /*
+   * Motion entrance states.
+   *
+   * Primary path is a CSS scroll-driven animation: no JavaScript at all, so
+   * visibility cannot be stranded by a slow module, a failed chunk, or an
+   * observer that never fires. Engines without `animation-timeline: view()`
+   * fall through to the JS path below, and anything that fails there is
+   * covered by the `.js-motion` failsafe in the layout.
+   *
+   * Keep the selector list in step with src/lib/motion/ui.ts.
+   */
+  @keyframes pg-rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Primary: scroll-driven, pure CSS. */
+  @supports (animation-timeline: view()) {
+    .section-head,
+    .eyebrow,
+    [data-reveal],
+    [data-reveal-group] > * {
+      animation: pg-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 18%;
+    }
+  }
+
+  /*
+   * Fallback: hidden only once JS confirms it will run an entrance, and
+   * revealed by the `.is-revealed` class it adds. Reduced-motion users never
+   * get `.js-motion` at all, and this media query is the second line of
+   * defence behind that.
+   */
+  .js-motion [data-reveal],
+  .js-motion .section-head,
+  .js-motion .eyebrow,
+  .js-motion [data-reveal-group] > * {
+    opacity: 0;
+  }
+
+  .js-motion [data-reveal].is-revealed,
+  .js-motion .section-head.is-revealed,
+  .js-motion .eyebrow.is-revealed,
+  .js-motion [data-reveal-group].is-revealed > * {
+    animation: pg-rise 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .js-motion [data-reveal],
+    .js-motion .section-head,
+    .js-motion .eyebrow,
+    .js-motion [data-reveal-group] > * {
+      opacity: 1;
+    }
+    .js-motion [data-reveal].is-revealed,
+    .js-motion .section-head.is-revealed,
+    .js-motion .eyebrow.is-revealed,
+    .js-motion [data-reveal-group].is-revealed > * {
+      animation: none;
+    }
+  }
+
   /* Visible, consistent focus states */
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-brand-600;
@@ -54,32 +246,435 @@
 }
 
 @layer components {
-  /* Minimal borders, soft shadows, generous tap targets */
+  /* Square-edged, hairline-bordered, generous tap targets. These classes carry
+     most of the public site, so the design language lives here rather than in
+     every page's class list. */
   .btn {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold transition-colors duration-150;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm px-5 text-sm font-semibold transition-colors duration-150;
   }
 
   .btn-accent {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-accent-400 px-5 text-sm font-semibold text-slate-900 transition-colors duration-150 hover:bg-accent-300;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm bg-accent-400 px-5 text-sm font-semibold text-slate-900 transition-colors duration-150 hover:bg-accent-300;
   }
 
   .btn-primary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-brand-700;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm bg-brand-600 px-5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-brand-700;
   }
 
   .btn-secondary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-800 transition-colors duration-150 hover:bg-slate-50;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-800 transition-colors duration-150 hover:bg-slate-50;
   }
 
+  /* Destructive confirmation (revoke, reject, delete). Same square language,
+     red edge, used only where an action removes something. */
+  .btn-danger {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm bg-rose-600 px-5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-rose-700;
+  }
+
+  .btn-ghost-danger {
+    @apply inline-flex min-h-9 items-center justify-center gap-1.5 rounded-sm px-3 text-sm font-semibold text-rose-600 transition-colors duration-150 hover:bg-rose-50;
+  }
+
+  /* Cards are square and hairline-bordered; the shadow is a whisper, not a
+     lift. Hover states add a brand edge rather than more depth. */
   .card {
-    @apply rounded-2xl bg-white shadow-card;
+    @apply border border-slate-200 bg-white;
+  }
+
+  .card-hover {
+    @apply transition-colors duration-150 hover:border-brand-300;
   }
 
   .field {
-    @apply flex min-h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus-within:border-brand-400;
+    @apply flex min-h-11 w-full items-center gap-2 rounded-sm border border-slate-200 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus-within:border-brand-400;
   }
 
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold;
+    @apply inline-flex items-center gap-1 rounded-sm px-2.5 py-1 text-xs font-semibold;
+  }
+
+  /* Filter pill. Square corners, hairline border, filled solid when active so
+     the selected state reads without relying on colour alone. Shared by
+     /pgs-near-you, the college and locality explorers, and /saved. */
+  .chip {
+    @apply inline-flex min-h-11 items-center rounded-sm border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 transition-colors duration-150 hover:border-slate-300 hover:bg-slate-50;
+  }
+  .chip.is-active {
+    @apply border-brand-600 bg-brand-600 text-white hover:border-brand-700 hover:bg-brand-700;
+  }
+
+  /* ---- section furniture --------------------------------------- */
+
+  /* Small uppercase kicker above a heading. */
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-xs font-semibold tracking-[0.18em] text-brand-700 uppercase;
+  }
+
+  /*
+   * Pixel accent: a stepped rule in brand purple with one lit yellow block,
+   * the same motif as the /profile banner reduced to a 4px-tall detail. Used
+   * under section headings and in empty states so the pixel language recurs
+   * without repeating the full artwork.
+   */
+  .pixel-rule {
+    @apply flex items-center gap-1;
+    height: 4px;
+  }
+  .pixel-rule > i {
+    @apply block h-full;
+    width: 8px;
+  }
+  .pixel-rule > i:nth-child(1) { background: var(--color-pixel-ink); }
+  .pixel-rule > i:nth-child(2) { background: var(--color-pixel-mid); }
+  .pixel-rule > i:nth-child(3) { background: var(--color-pixel-lit); }
+  .pixel-rule > i:nth-child(4) { background: var(--color-pixel-mid); }
+  .pixel-rule > i:nth-child(5) { background: var(--color-pixel-ink); }
+
+  /*
+   * The same five-step rule, drawn as a pseudo-element so a section heading
+   * needs one class instead of five <i> elements.
+   *
+   * It is absolutely positioned rather than an in-flow block: several headings
+   * are `display: flex` (to centre an icon against the text), and an in-flow
+   * ::before would then become a flex item and sit inline beside the icon
+   * instead of above the heading. Taking it out of flow makes the rule behave
+   * identically on flex and block headings.
+   */
+  .section-head {
+    position: relative;
+  }
+  .section-head::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 100%;
+    width: 40px;
+    height: 4px;
+    margin-bottom: 14px;
+    background: linear-gradient(
+      90deg,
+      var(--color-pixel-ink) 0% 20%,
+      transparent 20% 25%,
+      var(--color-pixel-mid) 25% 45%,
+      transparent 45% 50%,
+      var(--color-pixel-lit) 50% 70%,
+      transparent 70% 75%,
+      var(--color-pixel-mid) 75% 95%,
+      transparent 95%
+    );
+  }
+
+  /* Stepped corner block for hero/section panels. */
+  .pixel-corner::after {
+    content: "";
+    position: absolute;
+    inset-inline-end: 0;
+    bottom: 0;
+    width: 24px;
+    height: 24px;
+    background-image:
+      linear-gradient(var(--color-pixel-mid), var(--color-pixel-mid)),
+      linear-gradient(var(--color-pixel-lit), var(--color-pixel-lit));
+    background-size: 8px 8px, 8px 8px;
+    background-position: 100% 100%, 100% calc(100% - 8px);
+    background-repeat: no-repeat;
+    opacity: 0.9;
+  }
+
+  /*
+   * Top-right counterpart: three squares stepping down and inward from the
+   * corner. Used instead of a diagonal wedge on the hero so the page never
+   * shows a smooth gradient triangle.
+   */
+  .pixel-corner-tr {
+    @apply pointer-events-none absolute top-0 right-0 flex justify-end;
+    gap: 2px;
+    padding: 10px;
+  }
+  .pixel-corner-tr > span {
+    @apply block h-4 w-4;
+    background: var(--color-pixel-lit);
+  }
+  .pixel-corner-tr > span:nth-child(2) {
+    margin-top: 4px;
+    background: var(--color-pixel-mid);
+  }
+  .pixel-corner-tr > span:nth-child(3) {
+    margin-top: 8px;
+    background: var(--color-pixel-ink);
+  }
+
+  /*
+   * SpotlightCard — cursor spotlight.
+   *
+   * The React island writes --spot-x/--spot-y on mousemove; the overlay is a
+   * radial gradient positioned at those coordinates. Nothing renders on touch
+   * or keyboard focus, where the plain card styling carries the interaction.
+   */
+  .spotlight-card {
+    position: relative;
+  }
+  .spotlight-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 300ms ease;
+    background: radial-gradient(
+      340px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+      var(--spotlight-color, rgba(122, 66, 230, 0.14)),
+      transparent 70%
+    );
+    z-index: 0;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .spotlight-card:hover::before {
+      opacity: 1;
+    }
+  }
+  /* Content inside a spotlight card sits above the overlay. */
+  .spotlight-card > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /*
+   * GradientBackdrop — the iridescent band behind a PG headline.
+   *
+   * The canvas renders at a fraction of its display size and is then blurred by
+   * CSS, which is what turns a handful of radial gradients into something that
+   * reads as flowing silk. Scaling it past the box hides the blur's soft edge.
+   * Nothing here is interactive: the wrapper is pointer-events:none, and the
+   * renderer follows the pointer from a document-level listener instead.
+   */
+  .gd-root {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+  .gd-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    transform: scale(1.14);
+    transform-origin: center;
+    filter: blur(28px) saturate(1.12);
+  }
+
+  /*
+   * HeroScene — the landing page's living skyline.
+   *
+   * The SVG itself is server-rendered, so it is a finished poster before any
+   * JavaScript runs; these rules only add life to it once the island hydrates
+   * (`hs-animate`) or parallax is enabled (`hs-parallax`).
+   *
+   * Everything animates with transform/opacity so it stays on the compositor,
+   * and `.hs-paused` (set when the hero scrolls away or the tab is hidden)
+   * stops the whole set at once instead of leaving it burning frames.
+   */
+  .hs-root {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background-color: var(--color-brand-50);
+  }
+  .hs-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Lit windows: on by default, so the no-JS poster still reads as dusk. */
+  .hs-win {
+    opacity: 0.95;
+  }
+  .hs-win--dark {
+    opacity: 0.4;
+  }
+
+  .hs-animate .hs-win:not(.hs-win--dark) {
+    animation:
+      hs-window-in 900ms cubic-bezier(0.22, 1, 0.36, 1) both,
+      hs-window-pulse 7s ease-in-out infinite;
+    animation-delay: var(--hs-delay, 0s), calc(var(--hs-delay, 0s) + 1.1s);
+  }
+  @keyframes hs-window-in {
+    from {
+      opacity: 0.06;
+    }
+    to {
+      opacity: 0.95;
+    }
+  }
+  @keyframes hs-window-pulse {
+    0%,
+    100% {
+      opacity: 0.95;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+
+  .hs-animate .hs-cloud {
+    animation: hs-drift 46s ease-in-out infinite alternate;
+  }
+  @keyframes hs-drift {
+    from {
+      transform: translateX(-26px);
+    }
+    to {
+      transform: translateX(34px);
+    }
+  }
+
+  .hs-animate .hs-bird {
+    animation: hs-fly 28s linear infinite;
+  }
+  @keyframes hs-fly {
+    from {
+      transform: translate(-120px, 0);
+    }
+    to {
+      transform: translate(1560px, -22px);
+    }
+  }
+
+  .hs-animate .hs-glow {
+    animation: hs-lamp-pulse 4.5s ease-in-out infinite alternate;
+  }
+  @keyframes hs-lamp-pulse {
+    from {
+      opacity: 0.72;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /*
+   * Parallax: two custom properties written by the island (one rAF per frame)
+   * drive all three planes. Depth is the coefficient.
+   */
+  .hs-layer {
+    will-change: transform;
+    transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .hs-parallax .hs-layer--far {
+    transform: translate3d(calc(var(--hs-x, 0) * 5px), calc(var(--hs-y, 0) * 3px), 0);
+  }
+  .hs-parallax .hs-layer--mid {
+    transform: translate3d(calc(var(--hs-x, 0) * 11px), calc(var(--hs-y, 0) * 6px), 0);
+  }
+  .hs-parallax .hs-layer--near {
+    transform: translate3d(
+      calc(var(--hs-x, 0) * 19px),
+      calc(var(--hs-y, 0) * 10px + var(--hs-scroll, 0) * 30px),
+      0
+    );
+  }
+
+  /*
+   * Cursor light. Centred on the pointer using the same --hs-x/--hs-y pair as
+   * the parallax; hidden unless full (pointer) mode is active.
+   */
+  .hs-spot {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 500ms ease;
+    background: radial-gradient(
+      460px circle at calc(50% + var(--hs-x, 0) * 50%) calc(50% + var(--hs-y, 0) * 50%),
+      rgba(253, 224, 71, 0.3),
+      rgba(253, 224, 71, 0) 70%
+    );
+  }
+  .hs-parallax .hs-spot {
+    opacity: 1;
+  }
+
+  /* Mobile / low-core: keep the gentle motion, drop the busiest layers. */
+  .hs-lite .hs-heavy {
+    display: none;
+  }
+  .hs-lite .hs-layer {
+    will-change: auto;
+  }
+
+  .hs-paused .hs-win:not(.hs-win--dark),
+  .hs-paused .hs-cloud,
+  .hs-paused .hs-bird,
+  .hs-paused .hs-glow {
+    animation-play-state: paused;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hs-root .hs-win:not(.hs-win--dark),
+    .hs-root .hs-cloud,
+    .hs-root .hs-bird,
+    .hs-root .hs-glow {
+      animation: none;
+    }
+    .hs-root .hs-layer {
+      transform: none;
+      transition: none;
+      will-change: auto;
+    }
+  }
+
+  /*
+   * StarBorder — animated gradient border.
+   *
+   * Two conic-gradient layers, larger than the card, rotate inside an
+   * overflow-hidden wrapper while the inner content panel (inset by the
+   * border width) hides everything except the edge. Pure CSS, so islands pay
+   * nothing for it.
+   */
+  .star-border {
+    --star-border-width: 1.5px;
+    --star-duration: 8s;
+    --star-color-a: rgba(122, 66, 230, 0.9);
+    --star-color-b: rgba(250, 204, 21, 0.85);
+    position: relative;
+    overflow: hidden;
+  }
+  .star-border__ray {
+    position: absolute;
+    inset: -150%;
+    animation: star-spin var(--star-duration) linear infinite;
+    will-change: transform;
+  }
+  .star-border__ray--a {
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      transparent 300deg,
+      var(--star-color-a) 330deg,
+      transparent 360deg
+    );
+    animation-duration: var(--star-duration);
+  }
+  .star-border__ray--b {
+    background: conic-gradient(
+      from 180deg,
+      transparent 0deg,
+      transparent 280deg,
+      var(--star-color-b) 320deg,
+      transparent 360deg
+    );
+    animation-duration: calc(var(--star-duration) * 1.6);
+    opacity: 0.7;
+  }
+  @keyframes star-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .star-border__ray {
+      animation: none;
+    }
   }
 }

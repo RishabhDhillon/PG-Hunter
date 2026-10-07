@@ -13,6 +13,7 @@ import {
   syncAdminFlag,
   type UserRow,
 } from '@/lib/server/auth';
+import { recordCreatorReferral } from '@/lib/server/creators';
 
 export const prerender = false;
 
@@ -36,7 +37,16 @@ export async function POST(context: APIContext) {
   if (existing) return json({ error: 'An account with this email already exists. Try logging in.' }, 409);
 
   const salt = generateSalt();
-  const passwordHash = await hashPassword(password, salt);
+  let passwordHash: string;
+  try {
+    passwordHash = await hashPassword(password, salt);
+  } catch (err) {
+    // Previously this threw out of the handler, producing a bare 500 that the
+    // login page could only render as "Something went wrong". Log the cause and
+    // return something actionable.
+    console.error('auth_register: password hashing failed', err);
+    return json({ error: 'Sign-up is temporarily unavailable. Please try again shortly.' }, 503);
+  }
   const user: UserRow = {
     id: crypto.randomUUID(),
     email,
@@ -46,6 +56,11 @@ export async function POST(context: APIContext) {
     name,
     phone: null,
     college_slug: null,
+    city: null,
+    moving_in_month: null,
+    budget_pref: null,
+    availability: null,
+    message_to_owners: null,
     role,
     is_admin: 0,
     avatar_url: null,
@@ -55,8 +70,10 @@ export async function POST(context: APIContext) {
 
   await db
     .prepare(
-      `INSERT INTO users (id, email, password_hash, salt, provider, name, phone, college_slug, role, avatar_url, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO users (id, email, password_hash, salt, provider, name, phone, college_slug,
+                          city, moving_in_month, budget_pref, availability, message_to_owners,
+                          role, avatar_url, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       user.id,
@@ -67,6 +84,11 @@ export async function POST(context: APIContext) {
       user.name,
       user.phone,
       user.college_slug,
+      user.city,
+      user.moving_in_month,
+      user.budget_pref,
+      user.availability,
+      user.message_to_owners,
       user.role,
       user.avatar_url,
       user.created_at,
@@ -75,6 +97,17 @@ export async function POST(context: APIContext) {
     .run();
 
   if (await syncAdminFlag(db, user.email)) user.is_admin = 1;
+
+  // Creator attribution. An owner account that arrived through a creator's
+  // share link is credited to that creator — but a referral problem must never
+  // cost someone their account, so a failure here is logged, not thrown.
+  if (role === 'owner' && typeof body.ref === 'string' && body.ref) {
+    try {
+      await recordCreatorReferral(db, body.ref, user, 'Signed up through a creator link');
+    } catch (err) {
+      console.error('auth_register: recording creator referral failed', err);
+    }
+  }
 
   const token = await createSession(db, user.id);
   context.cookies.set(SESSION_COOKIE, token, sessionCookieOpts(context));
