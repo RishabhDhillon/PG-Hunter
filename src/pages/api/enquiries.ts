@@ -12,7 +12,22 @@ export async function POST(context: APIContext) {
   const propertyId = String(body?.propertyId ?? '').trim();
   if (!propertyId) return json({ error: 'Missing property id.' }, 400);
 
+  // The enquiry promises the owner the student's contact details, so the
+  // number has to actually land somewhere the owner can read it: the profile.
+  // Same shape and limits as PUT /api/profile; empty means "keep current".
+  const phone = String(body?.phone ?? '').trim();
+  if (phone && !/^[+()\d\s-]{7,24}$/.test(phone)) {
+    return json({ error: 'Enter a valid phone number (7–15 digits).' }, 400);
+  }
+
   const db = getDb();
+  if (phone && phone !== (user.phone ?? '')) {
+    await db
+      .prepare('UPDATE users SET phone = ?, updated_at = ? WHERE id = ?')
+      .bind(phone, new Date().toISOString(), user.id)
+      .run();
+  }
+
   await db
     .prepare(
       'INSERT INTO leads (property_id, student_id, budget, move_in_month, message, source) VALUES (?, ?, ?, ?, ?, ?)'

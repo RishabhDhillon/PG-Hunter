@@ -303,6 +303,8 @@ export const createEnquiry = async (input: {
   budget?: string;
   moveInMonth?: string;
   message?: string;
+  /** Contact number the owner will call back — saved to the profile. */
+  phone?: string;
 }): Promise<{ error?: string }> => {
   const user = await getSession();
   if (!user) return { error: 'Not logged in.' };
@@ -374,6 +376,9 @@ export interface Listing {
   expiresAt?: string | null;
   isExpired?: boolean;
   rejectionReason: string | null;
+  /** Owner opt-ins (talk-to-owner): may a student use WhatsApp / see the number. */
+  contactWhatsapp: boolean;
+  contactShowPhone: boolean;
   rooms: ListingRoom[];
   media: ListingMedia[];
   createdAt: string;
@@ -394,6 +399,8 @@ export interface ListingInput {
   curfew?: string;
   food?: { available: boolean; type?: 'veg' | 'non-veg' | 'both'; monthlyCost?: number };
   amenitySlugs?: string[];
+  contactWhatsapp?: boolean;
+  contactShowPhone?: boolean;
   rooms: ListingRoom[];
   pendingMediaIds?: string[];
 }
@@ -422,6 +429,8 @@ export interface OwnerLead {
   status: string;
   created_at: string;
   student_name: string | null;
+  /** The student's phone from users — how the owner calls an enquiry back. */
+  student_phone: string | null;
 }
 
 export interface OwnerOverview {
@@ -466,6 +475,10 @@ export const submitListing = (id: string): Promise<{ listing: Listing }> =>
   api(`/api/owner/listings/${encodeURIComponent(id)}/submit`, { method: 'POST' });
 
 export const getOwnerLeads = (): Promise<{ leads: OwnerLead[] }> => api('/api/owner/leads');
+
+/** Move a lead through the owner's follow-up workflow. */
+export const updateOwnerLead = (id: number, status: string): Promise<{ ok: boolean; status: string }> =>
+  api(`/api/owner/leads/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
 
 export const getVerificationState = (): Promise<{
   status: 'none' | 'pending' | 'approved';

@@ -14,7 +14,8 @@ export async function GET(context: APIContext) {
   const res = await getDb()
     .prepare(
       `SELECT l.id, l.property_id, ol.name AS property_name, l.budget, l.move_in_month,
-              l.message, l.source, l.status, l.created_at, u.name AS student_name
+              l.message, l.source, l.status, l.created_at, u.name AS student_name,
+              u.phone AS student_phone
        FROM leads l
        LEFT JOIN owner_listings ol ON ol.id = l.property_id
        LEFT JOIN users u ON u.id = l.student_id
@@ -33,6 +34,7 @@ export async function GET(context: APIContext) {
       status: string;
       created_at: string;
       student_name: string | null;
+      student_phone: string | null;
     }>();
 
   return json({ leads: res.results });

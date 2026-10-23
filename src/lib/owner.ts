@@ -73,6 +73,25 @@ export const leadStatusLabel = (status: string): string =>
   leadStatusMeta[status]?.label ?? status.replaceAll('_', ' ');
 
 /* ------------------------------------------------------------------ */
+/* Verification documents (tiered checklist, see /owner/verification)  */
+/* ------------------------------------------------------------------ */
+
+export const docTypeMeta: Record<string, { label: string; tier: 'required' | 'conditional' | 'other' }> = {
+  identity: { label: 'Government ID (owner)', tier: 'required' },
+  ownership: { label: 'Ownership proof — sale deed / title', tier: 'required' },
+  lease_noc: { label: 'Rent agreement + landlord NOC', tier: 'required' },
+  municipal_trade: { label: 'Municipal / trade licence', tier: 'conditional' },
+  fire_noc: { label: 'Fire safety NOC', tier: 'conditional' },
+  fssai: { label: 'FSSAI food licence', tier: 'conditional' },
+  gst: { label: 'GST registration', tier: 'conditional' },
+  other: { label: 'Other document', tier: 'other' },
+};
+
+/** Human label for a stored doc_type; unknown values degrade gracefully. */
+export const docTypeLabel = (value: string): string =>
+  docTypeMeta[value]?.label ?? value.replaceAll('_', ' ');
+
+/* ------------------------------------------------------------------ */
 /* Option catalogs (mirror the DTO vocabulary in src/data)             */
 /* ------------------------------------------------------------------ */
 

@@ -161,6 +161,16 @@ const manageTiles = [
         </div>
         <div id="recent-leads" class="divide-y divide-slate-100"></div>
       </section>
+
+      <section class="card lg:col-span-3" aria-labelledby="top-pgs-heading" data-reveal>
+        <div class="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <h2 id="top-pgs-heading" class="text-base font-bold text-slate-900">Performance by PG</h2>
+          <span class="text-xs font-semibold text-slate-400">All time · top 5 by views</span>
+        </div>
+        <div id="top-listings" class="divide-y divide-slate-100">
+          <p class="px-5 py-6 text-center text-sm font-semibold text-slate-400">Loading…</p>
+        </div>
+      </section>
     </div>
 
     <section class="card mt-6" aria-labelledby="status-guide-heading" data-reveal>
@@ -194,7 +204,7 @@ const manageTiles = [
     rentRangeOf,
     formatRelativeDate,
   } from '@/lib/owner';
-  import { initMotionUI } from '@/lib/motion/ui';
+  import { initMotionUI, countUpTo } from '@/lib/motion/ui';
 
   const loading = document.getElementById('dash-loading')!;
   const root = document.getElementById('dash-root')!;
@@ -302,19 +312,48 @@ const manageTiles = [
       .join('');
   };
 
+  /** Per-listing monitoring: which PG actually gets seen and asked about. */
+  const renderTopListings = (rows: { id: string; name: string; enquiries: number; views: number }[]) => {
+    const el = document.getElementById('top-listings');
+    if (!el) return;
+    if (rows.length === 0) {
+      el.innerHTML = `<p class="px-5 py-6 text-center text-sm font-semibold text-slate-400">No PGs yet — add a listing to start tracking performance.</p>`;
+      return;
+    }
+    const max = Math.max(1, ...rows.map((r) => Number(r.views) || 0));
+    el.innerHTML = rows
+      .map((r, i) => {
+        const views = Number(r.views) || 0;
+        const enquiries = Number(r.enquiries) || 0;
+        const width = Math.max(4, Math.round((views / max) * 100));
+        return `
+        <div class="flex flex-wrap items-center gap-3 px-5 py-4">
+          <span class="w-5 text-xs font-extrabold text-slate-400">${i + 1}</span>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <p class="truncate text-sm font-bold text-slate-900">${escapeHtml(r.name)}</p>
+              <p class="text-xs font-semibold text-slate-500">${enquiries} ${enquiries === 1 ? 'enquiry' : 'enquiries'} · ${views} ${views === 1 ? 'view' : 'views'}</p>
+            </div>
+            <div class="mt-1.5 h-1.5 max-w-sm overflow-hidden bg-slate-100">
+              <div class="h-full bg-brand-600" style="width: ${width}%"></div>
+            </div>
+          </div>
+          <a href="/owner/listings/${encodeURIComponent(r.id)}/edit" class="btn-secondary min-h-9 px-3 text-xs">
+            Manage
+          </a>
+        </div>`;
+      })
+      .join('');
+  };
+
   const init = async () => {
     const overview = await getOwnerOverview();
     nameEl.textContent = overview.user.name.split(' ')[0];
-    statListings.textContent = String(overview.stats.listings);
-    statActive.textContent = String(overview.stats.activeListings);
-    statLeads.textContent = String(overview.stats.leads);
     statVerification.textContent = verificationLabel(overview.stats.verification.status);
-    statReach.textContent = `${overview.stats.analytics.totals.views} views`;
-    statRooms.textContent = String(overview.stats.analytics.totals.availableRooms);
-    statPhotos.textContent = String(overview.stats.analytics.totals.photos);
     renderLineChart(enquiryChart, overview.stats.analytics.enquiriesByDay, 'count', '#2563eb');
     renderLineChart(reachChart, overview.stats.analytics.reachByDay, 'views', '#059669');
     renderStatusBars(overview.stats.analytics.listingStatuses);
+    renderTopListings(overview.stats.analytics.topListings);
 
     if (overview.stats.newLeads > 0) {
       statNewLeads.textContent = `${overview.stats.newLeads} new`;
@@ -330,6 +369,15 @@ const manageTiles = [
 
     loading.classList.add('hidden');
     root.classList.remove('hidden');
+
+    // The tiles are on screen now, so the count-up is actually visible.
+    countUpTo(statListings, overview.stats.listings);
+    countUpTo(statActive, overview.stats.activeListings);
+    countUpTo(statLeads, overview.stats.leads);
+    countUpTo(statReach, overview.stats.analytics.totals.views, (n) => `${n} views`);
+    countUpTo(statRooms, overview.stats.analytics.totals.availableRooms);
+    countUpTo(statPhotos, overview.stats.analytics.totals.photos);
+
     // Dashboard content was injected after page load — wire its entrances.
     initMotionUI();
   };

@@ -2,6 +2,7 @@
 export const prerender = false;
 import AdminLayout from '@/layouts/AdminLayout.astro';
 import { getDb } from '@/lib/server/auth';
+import { docTypeLabel } from '@/lib/owner';
 import { FileText, ExternalLink, Check, X, ShieldCheck } from '@lucide/astro';
 
 const url = new URL(Astro.request.url);
@@ -80,7 +81,7 @@ const filters = [
               <div class="flex flex-wrap items-center gap-2">
                 <span class="badge border border-slate-200 bg-white text-slate-700">
                   <FileText class="h-3.5 w-3.5" />
-                  {d.doc_type}
+                  {docTypeLabel(d.doc_type)}
                 </span>
                 <span
                   class={`badge ${

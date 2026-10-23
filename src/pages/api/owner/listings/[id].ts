@@ -151,7 +151,8 @@ export async function PUT(context: APIContext) {
       `UPDATE owner_listings SET
         name = ?, property_type = ?, gender = ?, address = ?, locality = ?, city = ?,
         latitude = ?, longitude = ?, description = ?, rules = ?, curfew = ?, food = ?,
-        amenity_slugs = ?, status = ?, rejection_reason = ?, updated_at = ?
+        amenity_slugs = ?, status = ?, rejection_reason = ?,
+        contact_whatsapp = ?, contact_show_phone = ?, updated_at = ?
        WHERE id = ?`
     )
     .bind(
@@ -180,6 +181,10 @@ export async function PUT(context: APIContext) {
       // Editing always clears the old rejection reason: the owner has acted on
       // it, and the listing is no longer sitting in a rejected state.
       null,
+      // Contact opt-ins are presentation, not evidence — changing them must
+      // never re-queue a live listing for moderation.
+      body.contactWhatsapp ? 1 : 0,
+      body.contactShowPhone ? 1 : 0,
       now,
       id
     )

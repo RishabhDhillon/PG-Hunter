@@ -18,16 +18,24 @@ const edit = mode === 'edit';
       {edit ? 'Edit listing' : 'Add a PG'}
     </h2>
     <p class="mt-0.5 text-sm text-slate-500">
-      Save a draft any time — submit for review when you're ready.
+      Three quick steps — save a draft or submit for review at the end.
     </p>
   </div>
 
   <form
     id="listing-form"
-    class="grid grid-cols-1 gap-6 px-5 py-6"
     data-mode={mode}
     data-listing-id={listingId ?? ''}
   >
+    <div class="border-b border-slate-100 px-5 py-3">
+      <ol class="flex flex-wrap items-center gap-2 text-xs font-semibold" aria-label="Form progress">
+        <li id="step-chip-1" class="rounded-full bg-brand-600 px-3 py-1 text-white">1 · Basics</li>
+        <li id="step-chip-2" class="rounded-full bg-slate-100 px-3 py-1 text-slate-500">2 · Rooms &amp; amenities</li>
+        <li id="step-chip-3" class="rounded-full bg-slate-100 px-3 py-1 text-slate-500">3 · Photos &amp; contact</li>
+      </ol>
+    </div>
+
+    <div data-form-step="1" class="grid grid-cols-1 gap-6 px-5 py-6">
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div class="sm:col-span-2">
         <label for="f-name" class="mb-1.5 block text-sm font-semibold text-slate-700">PG / property name *</label>
@@ -72,6 +80,9 @@ const edit = mode === 'edit';
           class="w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none"></textarea>
       </div>
     </div>
+    </div>
+
+    <div data-form-step="2" style="display:none" class="grid grid-cols-1 gap-6 px-5 py-6">
 
     <!-- Rooms -------------------------------------------------------- -->
     <fieldset class="border-t border-slate-100 pt-5">
@@ -84,7 +95,7 @@ const edit = mode === 'edit';
     </fieldset>
 
     <!-- Amenities ---------------------------------------------------- -->
-    <fieldset class="border-t border-slate-100 pt-5">
+    <fieldset id="amenities-editor" class="border-t border-slate-100 pt-5">
       <legend class="text-sm font-bold text-slate-900">Amenities</legend>
       <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {amenities.map((a) => (
@@ -100,7 +111,7 @@ const edit = mode === 'edit';
     <fieldset class="border-t border-slate-100 pt-5">
       <legend class="text-sm font-bold text-slate-900">Food & mess</legend>
       <label class="mt-3 flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3.5 text-sm font-semibold text-slate-700 has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50 has-[:checked]:text-brand-800">
-        <input id="f-food-available" type="checkbox" class="sr-only" />
+        <input id="f-food-available" type="checkbox" value="" class="sr-only" />
         Mess / food available
       </label>
       <div id="food-details" class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -129,6 +140,10 @@ const edit = mode === 'edit';
         <input id="f-curfew" type="text" placeholder="e.g. 11:00 PM on weekdays" class="field w-full" />
       </div>
     </fieldset>
+
+    </div>
+
+    <div data-form-step="3" style="display:none" class="grid grid-cols-1 gap-6 px-5 py-6">
 
     <!-- Photos ------------------------------------------------------- -->
     <fieldset class="border-t border-slate-100 pt-5">
@@ -184,16 +199,46 @@ const edit = mode === 'edit';
       </fieldset>
     )}
 
+    <!-- Contact ------------------------------------------------------ -->
+    <fieldset class="border-t border-slate-100 pt-5">
+      <legend class="text-sm font-bold text-slate-900">How students reach you</legend>
+      <p class="mt-0.5 text-xs text-slate-500">
+        Pick the direct channels students see on this listing. Both use the phone number on your
+        <a href="/owner/profile" class="font-semibold text-brand-700 hover:underline">profile</a> —
+        add it there first if it's empty.
+      </p>
+      <div class="mt-3 flex flex-col gap-2 sm:max-w-xl">
+        <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-3.5 text-sm font-semibold text-slate-700 has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50 has-[:checked]:text-brand-800">
+          <input id="f-contact-whatsapp" type="checkbox" value="" class="sr-only" />
+          WhatsApp — students message you with this listing prefilled
+        </label>
+        <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-3.5 text-sm font-semibold text-slate-700 has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50 has-[:checked]:text-brand-800">
+          <input id="f-contact-show-phone" type="checkbox" value="" class="sr-only" />
+          Phone number — students tap to reveal it and call you directly
+        </label>
+      </div>
+    </fieldset>
+
+    </div>
+
     <div id="form-error" class="hidden rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700" role="alert"></div>
     <div id="form-success" class="hidden rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700" role="status"></div>
 
-    <div class="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 pt-5">
-      <button type="button" id="save-draft-btn" class="btn-secondary">
-        <Save class="h-4 w-4" /> {edit ? 'Save changes' : 'Save draft'}
+    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-4">
+      <button type="button" id="back-btn" class="btn-secondary hidden">
+        Back
       </button>
-      <button type="button" id="submit-btn" class="btn-primary">
-        <Send class="h-4 w-4" /> Submit for review
-      </button>
+      <div class="ml-auto flex flex-wrap items-center gap-3">
+        <button type="button" id="next-btn" class="btn-primary">
+          Next
+        </button>
+        <button type="button" id="save-draft-btn" class="btn-secondary hidden">
+          <Save class="h-4 w-4" /> {edit ? 'Save changes' : 'Save draft'}
+        </button>
+        <button type="button" id="submit-btn" class="btn-primary hidden">
+          <Send class="h-4 w-4" /> Submit for review
+        </button>
+      </div>
     </div>
   </form>
 </section>
@@ -224,6 +269,7 @@ const edit = mode === 'edit';
   const mode = form.dataset.mode as 'create' | 'edit';
   const listingId = form.dataset.listingId || undefined;
   const roomsEl = document.getElementById('rooms-editor')!;
+  const amenitiesEl = document.getElementById('amenities-editor')!;
   const addRoomBtn = document.getElementById('add-room-btn') as HTMLButtonElement;
   const rulesEl = document.getElementById('rules-editor')!;
   const addRuleBtn = document.getElementById('add-rule-btn') as HTMLButtonElement;
@@ -331,9 +377,16 @@ const edit = mode === 'edit';
     locality: (form.querySelector<HTMLInputElement>('#f-locality')!.value || '').trim(),
     city: (form.querySelector<HTMLInputElement>('#f-city')!.value || '').trim(),
     description: (form.querySelector<HTMLTextAreaElement>('#f-description')!.value || '').trim(),
-    amenitySlugs: Array.from(form.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'))
-      .filter((c) => c.checked && c.value && c.name !== 'food')
+    // Scoped to the amenities fieldset: a global checkbox sweep also picked up
+    // the room "Available" toggle (no value attr → value "on"), which used to
+    // write a junk `"on"` slug into every listing saved from this form.
+    amenitySlugs: Array.from(
+      amenitiesEl.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')
+    )
+      .filter((c) => c.checked && c.value)
       .map((c) => c.value),
+    contactWhatsapp: form.querySelector<HTMLInputElement>('#f-contact-whatsapp')!.checked,
+    contactShowPhone: form.querySelector<HTMLInputElement>('#f-contact-show-phone')!.checked,
     rules: Array.from(rulesEl.querySelectorAll<HTMLInputElement>('input'))
       .map((i) => i.value.trim())
       .filter(Boolean),
@@ -747,6 +800,67 @@ const edit = mode === 'edit';
   saveBtn.addEventListener('click', save);
   submitBtn.addEventListener('click', submit);
 
+  /* ---- Step wizard ---------------------------------------------------- */
+  const steps = Array.from(form.querySelectorAll<HTMLElement>('[data-form-step]'));
+  const backBtn = document.getElementById('back-btn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('next-btn') as HTMLButtonElement;
+  const chips = [1, 2, 3].map((n) => document.getElementById(`step-chip-${n}`));
+  let currentStep = 1;
+
+  const showStep = (n: number) => {
+    currentStep = Math.min(steps.length, Math.max(1, n));
+    // Inline display wins over any utility class — no Tailwind `hidden` vs
+    // `grid` cascade guessing, and the CSP allows style attributes.
+    steps.forEach((s, i) => {
+      s.style.display = i === currentStep - 1 ? '' : 'none';
+    });
+    chips.forEach((c, i) => {
+      if (!c) return;
+      const active = i === currentStep - 1;
+      c.classList.toggle('bg-brand-600', active);
+      c.classList.toggle('text-white', active);
+      c.classList.toggle('bg-slate-100', !active);
+      c.classList.toggle('text-slate-500', !active);
+    });
+    backBtn.classList.toggle('hidden', currentStep === 1);
+    const last = currentStep === steps.length;
+    nextBtn.classList.toggle('hidden', last);
+    saveBtn.classList.toggle('hidden', !last);
+    submitBtn.classList.toggle('hidden', !last);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  /** Light per-step gate so mistakes surface where they happen. */
+  const validateStep = (n: number): string | null => {
+    if (n === 1 && !form.querySelector<HTMLInputElement>('#f-name')!.value.trim()) {
+      return 'Please enter a name for the PG.';
+    }
+    if (n === 2) {
+      const rooms = readRooms();
+      if (!rooms.length) return 'Add at least one room with a monthly rent.';
+      if (rooms.some((r) => !r.rent || r.rent < 0)) return 'Each room needs a valid monthly rent.';
+    }
+    return null;
+  };
+
+  nextBtn.addEventListener('click', () => {
+    const problem = validateStep(currentStep);
+    if (problem) {
+      setStatus(errorEl, problem);
+      errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    flash(errorEl, false);
+    showStep(currentStep + 1);
+  });
+
+  backBtn.addEventListener('click', () => {
+    flash(errorEl, false);
+    showStep(currentStep - 1);
+  });
+
+  showStep(1);
+
   /* ---- Populate (edit mode) -------------------------------------------- */
   const populate = (l: Listing) => {
     form.querySelector<HTMLInputElement>('#f-name')!.value = l.name;
@@ -757,8 +871,8 @@ const edit = mode === 'edit';
     form.querySelector<HTMLInputElement>('#f-city')!.value = l.city;
     form.querySelector<HTMLTextAreaElement>('#f-description')!.value = l.description;
 
-    form.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((c) => {
-      if (!c.value || c.name === 'food') return;
+    amenitiesEl.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((c) => {
+      if (!c.value) return;
       c.checked = l.amenitySlugs.includes(c.value);
     });
 
@@ -775,6 +889,8 @@ const edit = mode === 'edit';
     if (l.rooms.length === 0) roomsEl.appendChild(roomRow());
 
     media = l.media;
+    form.querySelector<HTMLInputElement>('#f-contact-whatsapp')!.checked = Boolean(l.contactWhatsapp);
+    form.querySelector<HTMLInputElement>('#f-contact-show-phone')!.checked = Boolean(l.contactShowPhone);
     renderPhotos();
     renderVideos();
   };

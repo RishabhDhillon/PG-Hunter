@@ -277,3 +277,41 @@ export function bootMotionUI(): void {
     );
   });
 }
+
+/* ------------------------------------------------------------------ *\
+ * count-ups
+\* ------------------------------------------------------------------ */
+
+/**
+ * Animate a number up to `value` inside `el` (dashboard stat tiles, totals).
+ *
+ * Writes plain text through `format`, so a caller can keep a suffix
+ * (`(n) => \`${n} views\``). Reduced-motion users get the final number
+ * immediately — the number is information, the animation is decoration.
+ */
+export function countUpTo(
+  el: Element | null,
+  value: number,
+  format: (n: number) => string = (n) => String(n)
+): void {
+  if (!el) return;
+  const target = Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
+  if (prefersReduced() || target === 0) {
+    el.textContent = format(target);
+    return;
+  }
+  animate(0, target, {
+    duration: 0.9,
+    ease: [0.22, 1, 0.36, 1],
+    onUpdate: (latest) => {
+      el.textContent = format(Math.round(latest));
+    },
+  });
+
+  // Failsafe: rAF is paused in hidden tabs, so an interrupted count could
+  // otherwise strand the placeholder. The final number always lands — the
+  // animation is decoration, the value is information.
+  window.setTimeout(() => {
+    el.textContent = format(target);
+  }, 1600);
+}

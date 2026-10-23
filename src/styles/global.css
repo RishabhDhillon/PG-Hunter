@@ -192,6 +192,38 @@
     }
   }
 
+  /*
+   * Hero headline: words split server-side in the page, staggered here.
+   * Pure CSS on purpose — the headline must be visible before (and without)
+   * any JS, and a React island for one animation is not worth its bytes.
+   * `.hero-word` spans carry `style="--i:N"` for the stagger index.
+   */
+  @keyframes pg-blur-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+      filter: blur(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+    }
+  }
+
+  .hero-word {
+    display: inline-block;
+    animation: pg-blur-in 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--i, 0) * 70ms);
+    will-change: transform, filter, opacity;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-word {
+      animation: none;
+    }
+  }
+
   /* Primary: scroll-driven, pure CSS. */
   @supports (animation-timeline: view()) {
     .section-head,
@@ -253,16 +285,93 @@
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm px-5 text-sm font-semibold transition-colors duration-150;
   }
 
-  .btn-accent {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm bg-accent-400 px-5 text-sm font-semibold text-slate-900 transition-colors duration-150 hover:bg-accent-300;
+  /* Primary doubles as the CTA: a soft vertical brand gradient with depth on
+     hover and a one-shot shine sweep. Transform/shadow live in plain CSS so
+     colour, lift and shadow transition together (Tailwind's transition-*
+     utilities would each need a matching utility class). */
+  .btn-primary {
+    @apply relative inline-flex min-h-11 items-center justify-center gap-2 overflow-hidden rounded-sm bg-gradient-to-b from-brand-600 to-brand-700 px-5 text-sm font-semibold text-white;
+    box-shadow: 0 1px 2px rgb(44 18 93 / 0.25);
+    transition:
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 180ms ease,
+      filter 180ms ease;
+  }
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px -8px rgb(122 66 230 / 0.55);
+    filter: brightness(1.04);
+  }
+  .btn-primary:active {
+    transform: translateY(0) scale(0.985);
+    box-shadow: 0 1px 2px rgb(44 18 93 / 0.25);
   }
 
-  .btn-primary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm bg-brand-600 px-5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-brand-700;
+  /* Shine sweep across the CTA on hover — motion accent, no new colours. */
+  .btn-primary::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 30%, rgb(255 255 255 / 0.35) 50%, transparent 70%);
+    transform: translateX(-130%);
+    pointer-events: none;
+  }
+  .btn-primary:hover::after {
+    animation: pg-shine 750ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes pg-shine {
+    to {
+      transform: translateX(130%);
+    }
+  }
+
+  .btn-accent {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm bg-accent-400 px-5 text-sm font-semibold text-slate-900;
+    box-shadow: 0 1px 2px rgb(15 10 30 / 0.12);
+    transition:
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 180ms ease,
+      background-color 150ms ease;
+  }
+  .btn-accent:hover {
+    transform: translateY(-1px);
+    background-color: var(--color-accent-300);
+    box-shadow: 0 10px 20px -10px rgb(234 179 8 / 0.55);
+  }
+  .btn-accent:active {
+    transform: translateY(0) scale(0.985);
   }
 
   .btn-secondary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-800 transition-colors duration-150 hover:bg-slate-50;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-800;
+    transition:
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 180ms ease,
+      background-color 150ms ease,
+      border-color 150ms ease;
+  }
+  .btn-secondary:hover {
+    transform: translateY(-1px);
+    border-color: var(--color-brand-300);
+    box-shadow: var(--shadow-card-hover);
+  }
+  .btn-secondary:active {
+    transform: translateY(0) scale(0.985);
+  }
+
+  /* Motion and this stylesheet must never fight: lift/scale gestures stay
+     available, decorative ones stand down for reduced-motion users. */
+  @media (prefers-reduced-motion: reduce) {
+    .btn-primary:hover,
+    .btn-accent:hover,
+    .btn-secondary:hover,
+    .card-hover:hover {
+      transform: none;
+    }
+    .btn-primary:hover::after {
+      animation: none;
+    }
   }
 
   /* Destructive confirmation (revoke, reject, delete). Same square language,
@@ -282,11 +391,83 @@
   }
 
   .card-hover {
-    @apply transition-colors duration-150 hover:border-brand-300;
+    box-shadow: var(--shadow-card);
+    transition:
+      transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 200ms ease,
+      border-color 150ms ease;
+  }
+  .card-hover:hover {
+    border-color: var(--color-brand-300);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-hover);
   }
 
   .field {
     @apply flex min-h-11 w-full items-center gap-2 rounded-sm border border-slate-200 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus-within:border-brand-400;
+  }
+
+  /* Engagement bar reactions (listing detail). Chunkier than YouTube's pills:
+     tall squared buttons with a bold count chip, solid brand-colour fill when
+     active so a reaction reads across the room. State comes from
+     [aria-pressed="true"] — markup carries no colour classes. */
+  .eng-btn {
+    @apply inline-flex h-11 cursor-pointer items-center gap-2 rounded-sm border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600 transition-all duration-150 select-none;
+  }
+  .eng-btn:hover {
+    @apply -translate-y-0.5;
+    box-shadow: var(--shadow-card-hover);
+  }
+  .eng-btn:active {
+    @apply translate-y-0;
+    box-shadow: none;
+  }
+  .eng-btn .eng-count {
+    @apply inline-flex min-w-7 justify-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-extrabold text-slate-700 transition-colors duration-150;
+    font-variant-numeric: tabular-nums;
+  }
+  .eng-btn[data-tone='save']:hover,
+  .eng-btn[data-tone='save'][aria-pressed='true'] {
+    @apply border-brand-600 bg-brand-600 text-white;
+  }
+  .eng-btn[data-tone='save'][aria-pressed='true'] .eng-count {
+    @apply bg-white/25 text-white;
+  }
+  .eng-btn[data-tone='like']:hover,
+  .eng-btn[data-tone='like'][aria-pressed='true'] {
+    @apply border-emerald-600 bg-emerald-600 text-white;
+  }
+  .eng-btn[data-tone='like']:hover .eng-count,
+  .eng-btn[data-tone='like'][aria-pressed='true'] .eng-count {
+    @apply bg-white/25 text-white;
+  }
+  .eng-btn[data-tone='dislike']:hover,
+  .eng-btn[data-tone='dislike'][aria-pressed='true'] {
+    @apply border-rose-600 bg-rose-600 text-white;
+  }
+  .eng-btn[data-tone='dislike']:hover .eng-count,
+  .eng-btn[data-tone='dislike'][aria-pressed='true'] .eng-count {
+    @apply bg-white/25 text-white;
+  }
+
+  /* Inline reveal for the enquiry panel — a soft drop-in instead of a modal. */
+  .pop-in {
+    animation: pop-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(-0.5rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pop-in {
+      animation: none;
+    }
   }
 
   .badge {

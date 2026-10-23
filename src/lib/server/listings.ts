@@ -36,6 +36,10 @@ export interface ListingRow {
   plan?: 'basic' | 'verified';
   plan_started_at?: string | null;
   expires_at?: string | null;
+  // Talk-to-owner opt-ins (migration 0010). Gating happens on read: the
+  // public routes may join users.phone only while one of these is set.
+  contact_whatsapp: number;
+  contact_show_phone: number;
   created_at: string;
   updated_at: string;
 }
@@ -99,6 +103,9 @@ export interface ListingDto {
   expiresAt: string | null;
   isExpired: boolean;
   rejectionReason: string | null;
+  /** Owner opt-ins — true only when the owner chose to share the channel. */
+  contactWhatsapp: boolean;
+  contactShowPhone: boolean;
   rooms: {
     id: number;
     roomType: string;
@@ -165,6 +172,8 @@ export const listingDto = (
   expiresAt: row.expires_at ?? null,
   isExpired: isExpired({ expires_at: row.expires_at ?? null }),
   rejectionReason: row.rejection_reason,
+  contactWhatsapp: Boolean(row.contact_whatsapp),
+  contactShowPhone: Boolean(row.contact_show_phone),
   rooms: rooms.map(roomDto),
   media: media.map((m) => ({
     id: m.id,
@@ -226,6 +235,8 @@ export const PUBLIC_LISTING_COLUMNS = [
   'plan',
   'plan_started_at',
   'expires_at',
+  'contact_whatsapp',
+  'contact_show_phone',
   'created_at',
   'updated_at',
 ].join(', ');
